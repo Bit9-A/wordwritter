@@ -232,7 +232,7 @@ export default function Home() {
                     value={userPrompt}
                     onChange={(e) => setUserPrompt(e.target.value.slice(0, 1000))}
                     placeholder="Ej: Mantén un tono formal, enfatiza la metodología técnica, etc."
-                    className="w-full p-4 text-sm text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px] resize-none"
+                    className="w-full p-4 text-sm text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-25 resize-none"
                   />
                   <div className="flex justify-end">
                     <span className="text-[10px] text-gray-400 font-medium">
@@ -306,6 +306,27 @@ export default function Home() {
               </div>
             </div>
 
+            {isProcessing && (
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 space-y-4 animate-pulse">
+                <div className="flex items-center justify-between text-sm font-bold text-indigo-900">
+                  <span className="flex items-center">
+                    <Loader2 className="animate-spin w-4 h-4 mr-2" />
+                    ANALIZANDO DOCUMENTO...
+                  </span>
+                  <span>ESTO PUEDE TARDAR UN MOMENTO...</span>
+                </div>
+                <div className="w-full bg-indigo-200 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className="bg-indigo-600 h-full rounded-full animate-progress-indeterminate"
+                  ></div>
+                </div>
+                <p className="text-xs text-indigo-600 text-center font-medium">
+                  Estamos extrayendo objetivos, tareas y estructurando tu cronograma de 14 semanas. 
+                  Por favor, mantén esta ventana abierta.
+                </p>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={!file || isProcessing}
@@ -316,7 +337,7 @@ export default function Home() {
               {isProcessing ? (
                 <>
                   <Loader2 className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" />
-                  Procesando con IA...
+                  Trabajando...
                 </>
               ) : (
                 <>
@@ -352,7 +373,7 @@ export default function Home() {
                           value={signatures.tutorAcademico} 
                           onChange={(e) => setSignatures({...signatures, tutorAcademico: e.target.value})}
                           placeholder="Nombre y Apellidos"
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
                         />
                       </div>
                       <div className="space-y-1">
@@ -362,7 +383,7 @@ export default function Home() {
                           value={signatures.tutorInstitucional} 
                           onChange={(e) => setSignatures({...signatures, tutorInstitucional: e.target.value})}
                           placeholder="Nombre y Apellidos"
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
                         />
                       </div>
                       <div className="space-y-1">
@@ -371,7 +392,7 @@ export default function Home() {
                           type="text" 
                           value={signatures.pasante} 
                           onChange={(e) => setSignatures({...signatures, pasante: e.target.value})}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
                         />
                       </div>
                     </div>
