@@ -72,10 +72,12 @@ export async function POST(req: NextRequest) {
 
     const ganttInstructions = includeGantt 
       ? `Para la sección de Cronograma (Capítulo 3):
-         - DEBES extraer o proponer exactamente 3 Actividades por cada Objetivo Específico encontrado en el documento.
-         - Por cada una de esas Actividades, DEBES desglosar exactamente 3 Tareas específicas.
-         - Distribuye estas tareas de manera lógica a lo largo de 14 semanas (1 a 14).
-         - Si el documento no tiene suficiente detalle, INVENTA tareas coherentes con los objetivos técnicos planteados.`
+         - DEBES estructurar la respuesta en exactamente 3 Niveles: Objetivo Específico -> Actividad -> Tarea.
+         - Para cada Objetivo Específico encontrado, DEBES proponer exactamente 3 Actividades de alto nivel.
+         - Por cada una de esas Actividades, DEBES proponer exactamente 3 Tareas operativas detalladas.
+         - Esto garantiza una cuadrícula perfecta de 3 especificaciones por nivel.
+         - Distribuye las tareas lógicamente a lo largo de 14 semanas.
+         - Si falta información en el texto original, INVENTA tareas y actividades académicamente coherentes con los objetivos.`
       : "NO extraigas datos estructurados para el Diagrama de Gantt. Deja diagramaGanttData como un array vacío.";
 
     const formattedPrompt = await promptTemplate.format({

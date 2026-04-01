@@ -36,13 +36,13 @@ export const THEMES: Record<string, ThemeConfig> = {
     id: 'institutional',
     name: 'Institucional (Rojo)',
     colors: {
-      headerBg: 'FFFF00', // Amarillo
+      headerBg: 'FFFF00', // Amarillo vibrante
       headerText: '000000',
-      subHeaderBg: 'E6E6FA', // Lavanda
+      subHeaderBg: 'F9FAFB', 
       subHeaderText: '000000',
-      barColor: 'C00000', // Rojo Universidad
+      barColor: 'FF0000', // Rojo vibrante
       borderColor: '000000',
-      objText: '000080', // Royal Blue
+      objText: '000000',
       actText: '333333',
     },
     layout: 'classic'
@@ -51,11 +51,11 @@ export const THEMES: Record<string, ThemeConfig> = {
     id: 'corporate',
     name: 'Corporativo (Azul)',
     colors: {
-      headerBg: '002060', // Azul Marino
+      headerBg: '002060',
       headerText: 'FFFFFF',
-      subHeaderBg: 'D9EAD3', // Verde Mentita
+      subHeaderBg: 'D9EAD3',
       subHeaderText: '000000',
-      barColor: '4472C4', // Azul Corporativo
+      barColor: '4472C4',
       borderColor: 'BFBFBF',
       objText: '002060',
       actText: '595959',
@@ -66,11 +66,11 @@ export const THEMES: Record<string, ThemeConfig> = {
     id: 'academic',
     name: 'Académico (Verde)',
     colors: {
-      headerBg: '008000', // Verde
+      headerBg: '008000',
       headerText: 'FFFFFF',
-      subHeaderBg: 'FDE9D9', // Durazno
+      subHeaderBg: 'FDE9D9',
       subHeaderText: '000000',
-      barColor: '34A853', // Verde Google
+      barColor: '34A853',
       borderColor: '7F7F7F',
       objText: '1E4D2B',
       actText: '404040',
@@ -81,11 +81,11 @@ export const THEMES: Record<string, ThemeConfig> = {
     id: 'modern',
     name: 'Moderno (Premium)',
     colors: {
-      headerBg: '4F46E5', // Índigo
+      headerBg: '4F46E5',
       headerText: 'FFFFFF',
-      subHeaderBg: 'F1F5F9', // Slate 100
+      subHeaderBg: 'F1F5F9',
       subHeaderText: '000000',
-      barColor: '7C3AED', // Violeta
+      barColor: '7C3AED',
       borderColor: 'E2E8F0',
       objText: '1E293B',
       actText: '64748B',
@@ -106,10 +106,12 @@ export async function generateGanttExcel(data: any, themeId: string = 'instituti
     }
   });
 
-  // Configurar anchos de columna
-  worksheet.getColumn(1).width = 45; // Descripción
-  for (let i = 2; i <= 15; i++) {
-    worksheet.getColumn(i).width = 4; // Semanas
+  // Configurar anchos de columna (A=Objetivos, B=Actividades, C=Tareas, D+=Semanas)
+  worksheet.getColumn(1).width = 25; // Objetivos
+  worksheet.getColumn(2).width = 25; // Actividades
+  worksheet.getColumn(3).width = 40; // Tareas
+  for (let i = 4; i <= 17; i++) {
+    worksheet.getColumn(i).width = 4; // Semana 1-14
   }
 
   let currentRow = 1;
@@ -122,8 +124,7 @@ export async function generateGanttExcel(data: any, themeId: string = 'instituti
     renderModernHeader(worksheet, data, theme);
     currentRow = 8;
   } else {
-    // Minimal
-    worksheet.mergeCells('A1:O2');
+    worksheet.mergeCells('A1:Q2');
     const titleCell = worksheet.getCell('A1');
     titleCell.value = 'CRONOGRAMA DE ACTIVIDADES';
     titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: theme.colors.objText } };
@@ -135,12 +136,21 @@ export async function generateGanttExcel(data: any, themeId: string = 'instituti
   const tableHeaderRow = worksheet.getRow(currentRow);
   tableHeaderRow.height = 30;
   
-  const descHeader = worksheet.getCell(`A${currentRow}`);
-  descHeader.value = 'OBJETIVOS / ACTIVIDADES / TAREAS';
-  applyHeaderStyle(descHeader, theme);
+  const col1Header = worksheet.getCell(`A${currentRow}`);
+  col1Header.value = 'OBJETIVOS ESPECÍFICOS';
+  applyHeaderStyle(col1Header, theme);
 
+  const col2Header = worksheet.getCell(`B${currentRow}`);
+  col2Header.value = 'ACTIVIDADES';
+  applyHeaderStyle(col2Header, theme);
+
+  const col3Header = worksheet.getCell(`C${currentRow}`);
+  col3Header.value = 'TAREAS';
+  applyHeaderStyle(col3Header, theme);
+
+  // Semanas (D a Q)
   for (let i = 1; i <= 14; i++) {
-    const semCell = worksheet.getCell(currentRow, i + 1);
+    const semCell = worksheet.getCell(currentRow, i + 3);
     semCell.value = i;
     applyHeaderStyle(semCell, theme);
     semCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -148,57 +158,30 @@ export async function generateGanttExcel(data: any, themeId: string = 'instituti
   
   currentRow++;
 
-  // Datos jerárquicos de 3 niveles
+  // Datos jerárquicos de 3 niveles con Merging
   const ganttData: GanttObjective[] = data.capitulo3?.diagramaGanttData || [];
 
   ganttData.forEach((obj) => {
-    // Fila de Objetivo
-    const objRow = worksheet.getRow(currentRow);
-    objRow.height = 25;
-    const objCell = worksheet.getCell(`A${currentRow}`);
-    objCell.value = obj.objetivo.toUpperCase();
-    objCell.font = { name: 'Arial', bold: true, size: 10, color: { argb: theme.colors.objText } };
-    objCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.colors.subHeaderBg } };
+    const objStartRow = currentRow;
     
-    // Bordes para toda la fila del objetivo
-    for (let i = 1; i <= 15; i++) {
-      worksheet.getCell(currentRow, i).border = getStandardBorder(theme.colors.borderColor);
-    }
-    
-    currentRow++;
-
     obj.actividades.forEach((act) => {
-      // Fila de Actividad
-      const actRow = worksheet.getRow(currentRow);
-      actRow.height = 20;
-      const actCell = worksheet.getCell(`A${currentRow}`);
-      actCell.value = `📍 ${act.descripcion}`;
-      actCell.font = { name: 'Arial', italic: true, bold: true, size: 9, color: { argb: theme.colors.actText } };
-      actCell.alignment = { indent: 1 };
+      const actStartRow = currentRow;
       
-      for (let i = 1; i <= 15; i++) {
-        worksheet.getCell(currentRow, i).border = getStandardBorder(theme.colors.borderColor);
-      }
-      
-      currentRow++;
-
       act.tareas.forEach((tarea) => {
-        // Fila de Tarea (Nivel 3)
-        const tareaRow = worksheet.getRow(currentRow);
-        tareaRow.height = 18;
-        const tareaCell = worksheet.getCell(`A${currentRow}`);
-        tareaCell.value = `    — ${tarea.descripcion}`;
-        tareaCell.font = { name: 'Arial', size: 9 };
-        tareaCell.alignment = { indent: 2 };
+        // Rellenar descripción de tarea
+        const tareaCell = worksheet.getCell(`C${currentRow}`);
+        tareaCell.value = tarea.descripcion;
+        tareaCell.font = { name: 'Arial', size: 8 };
+        tareaCell.alignment = { vertical: 'middle', wrapText: true };
         
         // Bordes de la tarea
-        for (let i = 1; i <= 15; i++) {
+        for (let i = 1; i <= 17; i++) {
           worksheet.getCell(currentRow, i).border = getStandardBorder(theme.colors.borderColor);
         }
 
-        // Pintar semanas (Barras del Gantt)
+        // Pintar semanas (Barras del Gantt) en columnas D a Q (4 a 17)
         for (let i = 1; i <= 14; i++) {
-          const semCell = worksheet.getCell(currentRow, i + 1);
+          const semCell = worksheet.getCell(currentRow, i + 3);
           if (tarea.semanas.includes(i)) {
             semCell.fill = {
               type: 'pattern',
@@ -209,7 +192,27 @@ export async function generateGanttExcel(data: any, themeId: string = 'instituti
         }
         currentRow++;
       });
+
+      // Combinar Actividades (Columna B)
+      const actEndRow = currentRow - 1;
+      if (actStartRow <= actEndRow) {
+        worksheet.mergeCells(`B${actStartRow}:B${actEndRow}`);
+        const currentActCell = worksheet.getCell(`B${actStartRow}`);
+        currentActCell.value = act.descripcion;
+        currentActCell.font = { name: 'Arial', size: 9, italic: true };
+        currentActCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      }
     });
+
+    // Combinar Objetivos (Columna A)
+    const objEndRow = currentRow - 1;
+    if (objStartRow <= objEndRow) {
+      worksheet.mergeCells(`A${objStartRow}:A${objEndRow}`);
+      const currentObjCell = worksheet.getCell(`A${objStartRow}`);
+      currentObjCell.value = obj.objetivo;
+      currentObjCell.font = { name: 'Arial', bold: true, size: 9 };
+      currentObjCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    }
   });
 
   // Espacio para firmas
@@ -222,19 +225,19 @@ export async function generateGanttExcel(data: any, themeId: string = 'instituti
 function renderInstitutionalHeader(worksheet: ExcelJS.Worksheet, data: any, theme: ThemeConfig) {
   const p = data.portada || {};
 
-  worksheet.mergeCells('A1:O1');
+  worksheet.mergeCells('A1:Q1');
   const h1 = worksheet.getCell('A1');
   h1.value = 'REPÚBLICA BOLIVARIANA DE VENEZUELA';
   h1.font = { bold: true, size: 11 };
   h1.alignment = { horizontal: 'center' };
 
-  worksheet.mergeCells('A2:O2');
+  worksheet.mergeCells('A2:Q2');
   const h2 = worksheet.getCell('A2');
   h2.value = (p.institucion || 'MINISTERIO DEL PODER POPULAR PARA LA EDUCACIÓN').toUpperCase();
   h2.font = { bold: true, size: 10 };
   h2.alignment = { horizontal: 'center' };
 
-  worksheet.mergeCells('A3:O10');
+  worksheet.mergeCells('A3:Q10');
   const titleBox = worksheet.getCell('A3');
   titleBox.value = `\n\nPLAN DE TRABAJO DE PASANTÍAS\nPROYECTO: ${(p.titulo || 'TITULO DEL PROYECTO').toUpperCase()}\nPASANTE: ${(p.nombres || '')} ${(p.apellidos || '')}`;
   titleBox.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -253,7 +256,7 @@ function renderModernHeader(worksheet: ExcelJS.Worksheet, data: any, theme: Them
   titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
   titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.colors.headerBg } };
 
-  worksheet.mergeCells('L1:O6');
+  worksheet.mergeCells('L1:Q6');
   const logoCell = worksheet.getCell('L1');
   logoCell.value = 'LOGO';
   logoCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -262,34 +265,30 @@ function renderModernHeader(worksheet: ExcelJS.Worksheet, data: any, theme: Them
 }
 
 function renderSignatures(worksheet: ExcelJS.Worksheet, row: number, signatures: any, theme: ThemeConfig) {
+  // Ajustado para Q columnas
   if (theme.layout === 'classic') {
-    // Cuadros de firmas clásicos
     worksheet.mergeCells(`A${row}:E${row + 4}`);
     const s1 = worksheet.getCell(`A${row}`);
     s1.value = `\n\n\n__________________________\n${signatures.tutorAcademico || 'Tutor Académico'}`;
     s1.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     s1.border = getStandardBorder(theme.colors.borderColor);
 
-    worksheet.mergeCells(`F${row}:J${row + 4}`);
+    worksheet.mergeCells(`F${row}:K${row + 4}`);
     const s2 = worksheet.getCell(`F${row}`);
     s2.value = `\n\n\n__________________________\n${signatures.tutorInstitucional || 'Tutor Institucional'}`;
     s2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     s2.border = getStandardBorder(theme.colors.borderColor);
 
-    worksheet.mergeCells(`K${row}:O${row + 4}`);
-    const s3 = worksheet.getCell(`K${row}`);
+    worksheet.mergeCells(`L${row}:Q${row + 4}`);
+    const s3 = worksheet.getCell(`L${row}`);
     s3.value = `\n\n\n__________________________\n${signatures.pasante || 'Pasante'}`;
     s3.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     s3.border = getStandardBorder(theme.colors.borderColor);
   } else {
-    // Líneas simples o alineadas
-    const sigRow = worksheet.getRow(row + 2);
-    const labelRow = worksheet.getRow(row + 3);
-
     const roles = [
       { name: signatures.tutorAcademico || 'Tutor Académico', col: 2 },
-      { name: signatures.tutorInstitucional || 'Tutor Institucional', col: 7 },
-      { name: signatures.pasante || 'Pasante', col: 12 }
+      { name: signatures.tutorInstitucional || 'Tutor Institucional', col: 8 },
+      { name: signatures.pasante || 'Pasante', col: 14 }
     ];
 
     roles.forEach(r => {
@@ -312,6 +311,7 @@ function applyHeaderStyle(cell: ExcelJS.Cell, theme: ThemeConfig) {
     fgColor: { argb: theme.colors.headerBg }
   };
   cell.border = getStandardBorder(theme.colors.borderColor);
+  cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 }
 
 function getStandardBorder(color: string): Partial<ExcelJS.Borders> {
