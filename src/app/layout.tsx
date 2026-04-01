@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WordWritter PRO",
+  title: "WordWritter",
   description: "Revisión académica y generación de diagramas institucionales",
+  other: {
+    "google-adsense-account": "ca-pub-6219970220596393",
+  },
 };
 
 export default function RootLayout({

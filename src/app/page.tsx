@@ -152,7 +152,7 @@ export default function Home() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
-            WordWritter <span className="text-indigo-600">PRO</span>
+            WordWritter
           </h1>
           <p className="text-lg text-gray-600">
             Revisión académica y generación de diagramas institucionales
@@ -331,6 +331,25 @@ export default function Home() {
                       </select>
                     </div>
                   )}
+                </div>
+
+                {/* Placeholder de Anuncio (Monetización) */}
+                <div className="pt-6 border-t border-gray-100">
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center min-h-32 text-center relative overflow-hidden group">
+                    <div className="absolute top-2 right-2 flex space-x-1">
+                      <span className="bg-indigo-100 text-indigo-600 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Ad</span>
+                      <button type="button" className="text-gray-300 hover:text-indigo-500 transition-colors">
+                        <AlertCircle size={8} />
+                      </button>
+                    </div>
+                    <div className="w-12 h-12 bg-indigo-100 rounded-lg mb-2 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                      <ExternalLink size={20} />
+                    </div>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Espacio Publicitario</p>
+                    <p className="text-[9px] text-gray-400 italic px-4 leading-tight">
+                      Este es un espacio reservado para patrocinios o anuncios que ayudan a mantener el servidor.
+                    </p>
+                  </div>
                 </div>
               </div>
 
