@@ -10,7 +10,17 @@ export const documentSchema = z.object({
     fechaMes: z.string().describe("Mes de presentación (ej. MAYO)"),
     fechaAno: z.string().describe("Año de presentación (ej. 2025)"),
   }).describe("Información para la portada y validaciones de la Capa 4"),
+
+  actasEvaluacion: z.object({
+    actaInstitucional: z.string().describe("Contenido del Acta de Evaluación del Tutor Institucional"),
+    actaAcademica: z.string().describe("Contenido del Acta de Evaluación del Tutor Académico"),
+    actaEvaluador: z.string().describe("Contenido del Acta del Evaluador Final"),
+  }),
+
+  dedicatoria: z.string().optional().describe("Texto de dedicatoria opcional"),
   
+  introduccion: z.string().describe("Introducción del informe (mínimo 1 página proyectada)"),
+
   capitulo1: z.object({
     ubicacionGeografica: z.string(),
     resenaHistorica: z.string(),
@@ -78,11 +88,6 @@ export const documentSchema = z.object({
   bibliografia: z.array(z.string()).describe("Lista de referencias en formato APA"),
 
   anexosText: z.string().describe("Texto introductorio para la sección de anexos o listado de anexos referenciados en el capítulo 3."),
-  firmasGantt: z.object({
-    tutorAcademico: z.string().describe("Nombre del Tutor Académico"),
-    tutorInstitucional: z.string().describe("Nombre del Tutor Institucional"),
-    pasante: z.string().describe("Nombre del Pasante (se precargará de Portada)"),
-  }).optional(),
 });
 
 export type DocumentData = z.infer<typeof documentSchema>;

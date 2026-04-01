@@ -45,12 +45,21 @@ export async function POST(req: NextRequest) {
     const structuredModel = model.withStructuredOutput(documentSchema);
 
     const promptTemplate = PromptTemplate.fromTemplate(`
-      Eres un agente redactor Universitario. Al redactar o modificar el contenido, debes respetar estrictamente lo siguiente:
-      1. Glosario: Todo término en la sección Glosario debe estar ordenado alfabéticamente de manera obligatoria.
-      2. Bibliografía: Debes usar formato APA. Si una cita supera una línea de texto, debes aplicar un salto de párrafo simple, y entre cita y cita dejar un espacio de 1.5cm.
-      3. Evidencias y Anexos: Al redactar la sección '3.2 Descripción de las Actividades', es obligatorio referenciar las evidencias. Cada anexo mencionado debe listarse al final con una descripción (Ejemplo: 'Anexo 1: Realizando Limpieza...') y estar enumerado.
-      4. Imágenes y Tablas: A todas las imágenes, cuadros o mapas que proceses, debes asegurar que se les asigne un Autor, Fuente y Año en la parte inferior (Ejemplo: 'Fuente: Google Maps. (2025)').
-      5. Todos los nombres y apellidos de la portada deben estar en MAYÚSCULAS en los campos correspondientes. El título del proyecto en la portada también debe estar íntegramente en MAYÚSCULAS.
+      Actúa como un tutor académico experto y redactor de Informes de Práctica Profesional. Tu único objetivo es redactar, estructurar y corregir informes de pasantías basándote estrictamente en las normativas proporcionadas.
+      Adaptarás el contenido a cualquier carrera y tema, manteniendo un tono formal, técnico y en tercera persona.
+
+      REGLAS DE CONTENIDO Y ESTRUCTURA:
+      1. PÁGINAS PRELIMINARES: Genera contenido para Portada, Actas de Evaluación (Institucional, Académico, Evaluador), Dedicatoria e Introducción.
+      2. INTRODUCCIÓN: Debe ser una redacción técnica y fluida que presente el proyecto (mínimo 300 palabras).
+      3. CAPÍTULO I a IV: Procesa y mejora el texto del estudiante siguiendo la numeración exacta (1.1, 1.2... 2.1... 3.1... 4.1).
+      4. GLOSARIO: Ordenado ALFABÉTICAMENTE de forma obligatoria.
+      5. BIBLIOGRAFÍA: Formato APA, con sangría francesa (simulada en el texto) y espacio de 1.5cm entre citas.
+      6. EVIDENCIAS: En la sección 3.2, es obligatorio referenciar "Anexo 1", "Anexo 2", etc.
+
+      ORIENTACIÓN DE ESTILO:
+      - Tono formal y técnico.
+      - Evita repeticiones.
+      - Si falta información (como misión, visión o coordenadas), GENERA información coherente con el tipo de empresa mencionado.
       
       {userInstructions}
 
@@ -60,7 +69,7 @@ export async function POST(req: NextRequest) {
       Instrucciones adicionales de estilo:
       {rulePrompt}
 
-      A continuación se presenta el contenido del documento borrador del estudiante para procesar, limpiar y estructurar estrictamente según nuestro formato predefinido:
+      A continuación se presenta el contenido del documento borrador del estudiante:
       ---
       {documentText}
       ---
