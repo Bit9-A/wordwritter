@@ -46,11 +46,13 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
             color: blackColor,
           },
           paragraph: {
+            alignment: AlignmentType.JUSTIFIED,
             spacing: {
               line: 360, // 1.5 line spacing
               before: 0,
               after: 0,
             },
+            indent: { firstLine: 708 }, // Sangría de primera línea APA 6
           },
         },
       },
@@ -59,7 +61,11 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           id: "Normal",
           name: "Normal",
           run: { font: defaultFont, size: defaultSize, color: blackColor },
-          paragraph: { spacing: { line: 360 } }
+          paragraph: { 
+            alignment: AlignmentType.JUSTIFIED, 
+            spacing: { line: 360 },
+            indent: { firstLine: 708 }, // Sangría de primera línea (aprox 1.25cm o 0.5 pulgadas)
+          }
         },
         {
           id: "Heading1",
