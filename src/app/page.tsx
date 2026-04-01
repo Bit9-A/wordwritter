@@ -12,6 +12,8 @@ export default function Home() {
   const [processedData, setProcessedData] = useState<any>(null);
   const [result, setResult] = useState<string | null>(null);
   const [includeGantt, setIncludeGantt] = useState(true);
+  const [generationMode, setGenerationMode] = useState<'both' | 'word' | 'gantt'>('both');
+  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
   const [ganttTheme, setGanttTheme] = useState('institutional');
   const [apiKey, setApiKey] = useState('');
   const [userPrompt, setUserPrompt] = useState('');
@@ -60,7 +62,9 @@ export default function Home() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('ruleId', selectedRuleId);
-    formData.append('includeGantt', String(includeGantt));
+    formData.append('includeGantt', String(generationMode !== 'word'));
+    formData.append('generationMode', generationMode);
+    formData.append('model', selectedModel);
     formData.append('apiKey', apiKey);
     formData.append('userPrompt', userPrompt);
 
@@ -86,7 +90,7 @@ export default function Home() {
         pasante: data.firmasGantt?.pasante || `${data.portada.nombres} ${data.portada.apellidos}`
       });
 
-      setResult(includeGantt 
+      setResult(generationMode !== 'word'
         ? "Documento procesado. Ahora puedes ajustar el Cronograma de 3 Niveles." 
         : "Documento procesado exitosamente.");
     } catch (error: any) {
@@ -186,6 +190,32 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4 pt-4 border-t border-gray-100">
+                  <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
+                    <Loader2 className="w-4 h-4 mr-2 text-indigo-500" />
+                    Inteligencia Artificial (Modelo)
+                  </label>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="block w-full pl-3 pr-10 py-3 text-base text-gray-900 border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm rounded-xl border appearance-none bg-white font-medium"
+                  >
+                    <optgroup label="Última Generación (Gemini 3)">
+                      <option value="gemini-3.1-pro-preview">✨ Gemini 3.1 Pro (Razonamiento SOTA)</option>
+                      <option value="gemini-3-flash-preview">⚡ Gemini 3 Flash (Alta Velocidad)</option>
+                      <option value="gemini-3.1-flash-lite-preview">📉 Gemini 3.1 Flash Lite (Eficiente)</option>
+                    </optgroup>
+                    <optgroup label="Generación Anterior / Otros">
+                      <option value="gemini-2.5-flash">🔄 Gemini 2.5 Flash</option>
+                      <option value="gemini-1.5-pro">💎 Gemini 1.5 Pro</option>
+                      <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash</option>
+                    </optgroup>
+                  </select>
+                  <p className="text-[10px] text-gray-400 italic leading-tight">
+                    * Pro es más lento pero más inteligente. Flash es optimizado para velocidad.
+                  </p>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
                       <Key className="w-4 h-4 mr-2 text-yellow-500" />
@@ -242,24 +272,52 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4 pt-4 border-t border-gray-100">
-                  <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-xl border border-green-100">
-                    <input
-                      type="checkbox"
-                      id="includeGantt"
-                      checked={includeGantt}
-                      onChange={(e) => setIncludeGantt(e.target.checked)}
-                      className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
-                    />
-                    <label htmlFor="includeGantt" className="text-sm font-bold text-green-800 cursor-pointer">
-                      Generar Diagrama de Gantt
-                    </label>
+                  <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
+                    <FileText className="w-4 h-4 mr-2 text-indigo-500" />
+                    Modo de Procesamiento
+                  </label>
+                  
+                  <div className="grid grid-cols-1 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setGenerationMode('both')}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${generationMode === 'both' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}
+                    >
+                      <div className="flex items-center">
+                        <CheckCircle size={18} className="mr-2" />
+                        <span className="text-sm font-bold">Word + Gantt</span>
+                      </div>
+                      {generationMode === 'both' && <div className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full uppercase font-black">Recomendado</div>}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setGenerationMode('word')}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${generationMode === 'word' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}
+                    >
+                      <div className="flex items-center">
+                        <FileText size={18} className="mr-2" />
+                        <span className="text-sm font-bold">Solo Word</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setGenerationMode('gantt')}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${generationMode === 'gantt' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}
+                    >
+                      <div className="flex items-center">
+                        <Palette size={18} className="mr-2" />
+                        <span className="text-sm font-bold">Solo Gantt</span>
+                      </div>
+                    </button>
                   </div>
 
-                  {includeGantt && (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  {generationMode !== 'word' && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-gray-50">
                       <label className="flex items-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                         <Palette className="w-3 h-3 mr-1 text-indigo-500" />
-                        Estilo Visual y Layout
+                        Estilo Visual del Diagrama
                       </label>
                       <select
                         value={ganttTheme}
@@ -360,7 +418,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {includeGantt && editableGanttData.length > 0 && (
+              {generationMode !== 'word' && editableGanttData.length > 0 && (
                 <div className="space-y-6">
                   {/* Editor de Firmas */}
                   <div className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4">
@@ -450,15 +508,17 @@ export default function Home() {
               )}
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button
-                  onClick={() => downloadFile('/api/export/word', `revisado_${file?.name || 'documento'}`)}
-                  className="flex items-center justify-center py-4 px-4 bg-white border-2 border-indigo-100 rounded-xl text-indigo-900 font-bold hover:bg-gray-50 transition-all shadow-sm"
-                >
-                  <FileText className="w-5 h-5 mr-2" />
-                  Descargar Word FINAL
-                </button>
+                {generationMode !== 'gantt' && (
+                  <button
+                    onClick={() => downloadFile('/api/export/word', `revisado_${file?.name || 'documento'}`)}
+                    className="flex items-center justify-center py-4 px-4 bg-white border-2 border-indigo-100 rounded-xl text-indigo-900 font-bold hover:bg-gray-50 transition-all shadow-sm"
+                  >
+                    <FileText className="w-5 h-5 mr-2" />
+                    Descargar Word FINAL
+                  </button>
+                )}
                 
-                {includeGantt && (
+                {generationMode !== 'word' && (
                   <button
                     onClick={() => downloadFile('/api/export/excel', `gantt_${file?.name.replace('.docx', '') || 'plan'}.xlsx`)}
                     className="flex items-center justify-center py-4 px-4 bg-indigo-600 border-2 border-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-700 transition-all shadow-md active:shadow-inner"

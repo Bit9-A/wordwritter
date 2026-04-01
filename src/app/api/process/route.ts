@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File;
     const ruleId = formData.get('ruleId') as string;
     const includeGantt = formData.get('includeGantt') === 'true';
+    const generationMode = formData.get('generationMode') as string || 'both';
+    const selectedModel = formData.get('model') as string || 'gemini-3-flash-preview';
     const userApiKey = formData.get('apiKey') as string;
     const userPrompt = formData.get('userPrompt') as string || '';
 
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
     // 2. Configurar IA (Capa 3 y estructurado Capa 2)
     const model = new ChatGoogleGenerativeAI({
       apiKey: userApiKey,
-      model: "gemini-2.5-flash", 
+      model: selectedModel, 
     });
 
     const structuredModel = model.withStructuredOutput(documentSchema);
@@ -62,9 +64,7 @@ export async function POST(req: NextRequest) {
       - Si falta información (como misión, visión o coordenadas), GENERA información coherente con el tipo de empresa mencionado.
       
       {userInstructions}
-
-      CRÍTICO - DIAGRAMA DE GANTT (Solo si se solicita):
-      {ganttInstructions}
+      {modeInstructions}
 
       Instrucciones adicionales de estilo:
       {rulePrompt}
@@ -79,20 +79,29 @@ export async function POST(req: NextRequest) {
       ? `INSTRUCCIONES ESPECÍFICAS DEL USUARIO (Prioridad Alta): ${userPrompt}`
       : "";
 
-    const ganttInstructions = includeGantt 
+    let modeInstructions = "";
+    if (generationMode === 'word') {
+      modeInstructions = `ENFOQUE: Solo Informe Word. Ignora la sección de cronograma. Deja diagramaGanttData como un array vacío.`;
+    } else if (generationMode === 'gantt') {
+      modeInstructions = `ENFOQUE: Solo Diagrama de Gantt. Aunque debes llenar la estructura del documento, tu prioridad absoluta es extraer y proponer una estructura perfecta de 3 niveles para el cronograma (Objetivo -> Actividad -> Tarea).`;
+    } else {
+      modeInstructions = `ENFOQUE: Completo (Word + Gantt). Procesa el informe y genera la estructura de 3 niveles para el cronograma.`;
+    }
+
+    const ganttInstructions = (generationMode !== 'word') 
       ? `Para la sección de Cronograma (Capítulo 3):
          - DEBES estructurar la respuesta en exactamente 3 Niveles: Objetivo Específico -> Actividad -> Tarea.
          - Para cada Objetivo Específico encontrado, DEBES proponer exactamente 3 Actividades de alto nivel.
          - Por cada una de esas Actividades, DEBES proponer exactamente 3 Tareas operativas detalladas.
-         - Esto garantiza una cuadrícula perfecta de 3 especificaciones por nivel.
-         - Distribuye las tareas lógicamente a lo largo de 14 semanas.
-         - Si falta información en el texto original, INVENTA tareas y actividades académicamente coherentes con los objetivos.`
-      : "NO extraigas datos estructurados para el Diagrama de Gantt. Deja diagramaGanttData como un array vacío.";
+         - Distribuye las tareas lógicamente a lo largo de 14 semanas.`
+      : "";
+
+    const finalModeInstructions = `${modeInstructions}\n\n${ganttInstructions}`;
 
     const formattedPrompt = await promptTemplate.format({
       rulePrompt: rule.prompt,
       documentText: text,
-      ganttInstructions: ganttInstructions,
+      modeInstructions: finalModeInstructions,
       userInstructions: userInstructions
     });
 

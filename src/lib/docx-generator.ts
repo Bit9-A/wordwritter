@@ -44,25 +44,45 @@ const M_CHAP = {    // Inicio de capítulo/sección: 5 cm superior
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Párrafo de texto normal (justificado, sangría 1ª línea, sin espacio extra) */
+/** Parsea texto con negritas markdown (**texto**) */
+function parseMarkdownBold(text: string): TextRun[] {
+  const parts: TextRun[] = [];
+  const regex = /\*\*(.*?)\*\*/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(new TextRun({ text: text.substring(lastIndex, match.index), font: FONT, size: FONT_SIZE, color: BLACK }));
+    }
+    parts.push(new TextRun({ text: match[1], font: FONT, size: FONT_SIZE, bold: true, color: BLACK }));
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(new TextRun({ text: text.substring(lastIndex), font: FONT, size: FONT_SIZE, color: BLACK }));
+  }
+
+  return parts.length > 0 ? parts : [new TextRun({ text, font: FONT, size: FONT_SIZE, color: BLACK })];
+}
+
+/** Párrafo de texto normal (justificado, SIN sangría, sin espacio extra) */
 function bodyParagraph(text: string, opts?: { alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] }): Paragraph {
   return new Paragraph({
     style: 'BodyText',
     alignment: opts?.alignment ?? AlignmentType.JUSTIFIED,
-    children: [new TextRun({ text, font: FONT, size: FONT_SIZE, color: BLACK })],
+    children: parseMarkdownBold(text),
     spacing: { line: LINE_15, before: PARA_SPACE_BEFORE, after: PARA_SPACE_AFTER },
-    indent: { firstLine: INDENT_1L },
   });
 }
 
-/** Párrafo de texto normal a partir de partes ya procesadas */
-function bodyMultiRun(children: TextRun[], opts?: { noIndent?: boolean }): Paragraph {
+/** Párrafo de texto normal a partir de partes ya procesadas (p. ej. Glosario) */
+function bodyMultiRun(children: TextRun[], opts?: { alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] }): Paragraph {
   return new Paragraph({
     style: 'BodyText',
-    alignment: AlignmentType.JUSTIFIED,
+    alignment: opts?.alignment ?? AlignmentType.JUSTIFIED,
     children,
     spacing: { line: LINE_15, before: PARA_SPACE_BEFORE, after: PARA_SPACE_AFTER },
-    indent: opts?.noIndent ? undefined : { firstLine: INDENT_1L },
   });
 }
 
@@ -71,20 +91,20 @@ function pageBreak(): Paragraph {
   return new Paragraph({ children: [new PageBreak()] });
 }
 
-/** Heading 1: MAYÚSCULAS, centrado, sin sangría */
+/** Heading 1: MAYÚSCULAS, centrado, sin sangría, nivel TOC 1 */
 function heading1(text: string): Paragraph {
   return new Paragraph({
-    style: 'CustomHeading1',
+    heading: HeadingLevel.HEADING_1,
     alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text, font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
+    children: [new TextRun({ text: text.toUpperCase(), font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
     spacing: { line: LINE_15, before: 0, after: 0 },
   });
 }
 
-/** Heading 2: Negrilla, alineado izquierda, sin sangría */
+/** Heading 2: Negrilla, alineado izquierda, sin sangría, nivel TOC 2 */
 function heading2(text: string): Paragraph {
   return new Paragraph({
-    style: 'CustomHeading2',
+    heading: HeadingLevel.HEADING_2,
     alignment: AlignmentType.LEFT,
     children: [new TextRun({ text, font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
     spacing: { line: LINE_15, before: convertMillimetersToTwip(6), after: 0 },
@@ -146,33 +166,32 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           paragraph: {
             alignment: AlignmentType.JUSTIFIED,
             spacing: { line: LINE_15, before: 0, after: 0 },
-            indent: { firstLine: INDENT_1L },
           },
         },
-        // Heading 1 — hereda del built-in Heading 1 para que el TOC lo reconozca
+        // Heading 1 — personalizado para que coincida con requerimientos
         {
-          id: 'CustomHeading1',
-          name: 'heading 1',          // DEBE coincidir exactamente con el nombre built-in
+          id: 'Heading1',
+          name: 'Heading 1',
           basedOn: 'Normal',
           next: 'BodyText',
-          run: { font: FONT, size: FONT_SIZE, bold: true, color: BLACK, allCaps: false },
+          run: { font: FONT, size: FONT_SIZE, bold: true, color: BLACK },
           paragraph: {
             alignment: AlignmentType.CENTER,
             spacing: { line: LINE_15, before: 0, after: 0 },
-            outlineLevel: 0,           // ← marca este estilo como nivel 1 del TOC
+            outlineLevel: 0,
           },
         },
-        // Heading 2 — hereda del built-in Heading 2 para que el TOC lo reconozca
+        // Heading 2 — personalizado
         {
-          id: 'CustomHeading2',
-          name: 'heading 2',
+          id: 'Heading2',
+          name: 'Heading 2',
           basedOn: 'Normal',
           next: 'BodyText',
           run: { font: FONT, size: FONT_SIZE, bold: true, color: BLACK },
           paragraph: {
             alignment: AlignmentType.LEFT,
             spacing: { line: LINE_15, before: convertMillimetersToTwip(6), after: 0 },
-            outlineLevel: 1,           // ← marca este estilo como nivel 2 del TOC
+            outlineLevel: 1,
           },
         },
       ],
@@ -545,7 +564,7 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
             bodyMultiRun([
               new TextRun({ text: `${t.termino}: `, font: FONT, size: FONT_SIZE, bold: true, color: BLACK }),
               new TextRun({ text: t.definicion, font: FONT, size: FONT_SIZE, color: BLACK }),
-            ], { noIndent: true })
+            ])
           ),
         ],
       },
