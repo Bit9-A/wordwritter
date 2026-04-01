@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     // 2. Configurar IA (Capa 3 y estructurado Capa 2)
     const model = new ChatGoogleGenerativeAI({
       apiKey: userApiKey,
-      model: "gemini-1.5-flash", 
+      model: "gemini-2.5-flash", 
     });
 
     const structuredModel = model.withStructuredOutput(documentSchema);
