@@ -109,7 +109,9 @@ export async function POST(req: NextRequest) {
     const documentData = await structuredModel.invoke(formattedPrompt);
 
     // 4. Validar las reglas de negocio (Capa 4)
-    const validation = validateDocument(documentData);
+    const validation = validateDocument(documentData, { 
+      skipGantt: generationMode === 'word' 
+    });
     if (!validation.valid) {
       return NextResponse.json({ error: 'La IA no pudo cumplir con todas las normativas estrictas de validación.', detalles: validation.errors }, { status: 400 });
     }

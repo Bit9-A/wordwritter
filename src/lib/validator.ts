@@ -5,7 +5,7 @@ export interface ValidationResult {
   errors: string[];
 }
 
-export function validateDocument(data: DocumentData): ValidationResult {
+export function validateDocument(data: DocumentData, options: { skipGantt?: boolean } = {}): ValidationResult {
   const errors: string[] = [];
 
   // 1. Auto-corregir Nombres y Título a MAYÚSCULAS en lugar de fallar
@@ -35,8 +35,10 @@ export function validateDocument(data: DocumentData): ValidationResult {
 
   // 3. Validación aproximada de longitud (mínimo 20 páginas cuerpo del trabajo)
   // Desactivada temporalmente para permitir pruebas con documentos pequeños.
-  if (!data.capitulo3.diagramaGanttData || data.capitulo3.diagramaGanttData.length === 0) {
-      errors.push("El diagrama de Gantt estructurado está vacío. Por favor, asegúrese de que la IA extraiga los objetivos y actividades.");
+  if (!options.skipGantt) {
+    if (!data.capitulo3.diagramaGanttData || data.capitulo3.diagramaGanttData.length === 0) {
+        errors.push("El diagrama de Gantt estructurado está vacío. Por favor, asegúrese de que la IA extraiga los objetivos y actividades.");
+    }
   }
   
   if (errors.length > 0) {

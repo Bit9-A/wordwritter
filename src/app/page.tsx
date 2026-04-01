@@ -200,14 +200,14 @@ export default function Home() {
                     className="block w-full pl-3 pr-10 py-3 text-base text-gray-900 border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm rounded-xl border appearance-none bg-white font-medium"
                   >
                     <optgroup label="Última Generación (Gemini 3)">
-                      <option value="gemini-3.1-pro-preview">✨ Gemini 3.1 Pro (Razonamiento SOTA)</option>
-                      <option value="gemini-3-flash-preview">⚡ Gemini 3 Flash (Alta Velocidad)</option>
-                      <option value="gemini-3.1-flash-lite-preview">📉 Gemini 3.1 Flash Lite (Eficiente)</option>
+                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
+                      <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+                      <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
                     </optgroup>
                     <optgroup label="Generación Anterior / Otros">
-                      <option value="gemini-2.5-flash">🔄 Gemini 2.5 Flash</option>
-                      <option value="gemini-1.5-pro">💎 Gemini 1.5 Pro</option>
-                      <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash</option>
+                      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                      <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                      <option value="gemini-1.5-flash">gemini-1.5-flash</option>
                     </optgroup>
                   </select>
                   <p className="text-[10px] text-gray-400 italic leading-tight">
@@ -324,10 +324,10 @@ export default function Home() {
                         onChange={(e) => setGanttTheme(e.target.value)}
                         className="block w-full pl-3 pr-10 py-2 text-xs text-gray-900 border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg border appearance-none bg-white font-semibold"
                       >
-                        <option value="institutional">🏛️ Institucional (Clásico)</option>
-                        <option value="corporate">🏢 Corporativo (Moderno)</option>
-                        <option value="academic">🎓 Académico (Técnico)</option>
-                        <option value="modern">✨ Moderno (Premium)</option>
+                        <option value="institutional">Institucional (Clásico)</option>
+                        <option value="corporate">Corporativo (Moderno)</option>
+                        <option value="academic">Académico (Técnico)</option>
+                        <option value="modern">Moderno (Premium)</option>
                       </select>
                     </div>
                   )}
