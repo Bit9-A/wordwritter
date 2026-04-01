@@ -1,381 +1,588 @@
-import { 
-  Document, 
-  Packer, 
-  Paragraph, 
-  TextRun, 
-  HeadingLevel, 
-  convertInchesToTwip, 
-  AlignmentType, 
-  PageOrientation, 
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+  convertInchesToTwip,
+  AlignmentType,
+  PageOrientation,
   NumberFormat,
   TableOfContents,
   Footer,
   PageNumber,
-  PageBreak
+  PageBreak,
+  LevelFormat,
+  convertMillimetersToTwip,
+  Tab,
+  LeaderType,
 } from 'docx';
 import { DocumentData } from './schema';
 
-const CM_TO_TWIP = 567.0; // 1 cm = 567 twips
+// ─── Constantes de formato ────────────────────────────────────────────────────
+const FONT      = 'Arial';
+const FONT_SIZE = 24;          // 12 pt → docx usa half-points
+const BLACK     = '000000';
+const LINE_15   = 360;         // 1.5 interlineado (240 twips = 1.0 single)
+const INDENT_1L = convertMillimetersToTwip(12.7); // 0.5 in / 1.27 cm — sangría APA6
+const PARA_SPACE_BEFORE = 0;
+const PARA_SPACE_AFTER  = 0;
 
+// Márgenes (en twips desde milímetros)
+const M_STD = {
+  top:    convertMillimetersToTwip(30),
+  bottom: convertMillimetersToTwip(30),
+  right:  convertMillimetersToTwip(30),
+  left:   convertMillimetersToTwip(40),
+};
+const M_CHAP = {    // Inicio de capítulo/sección: 5 cm superior
+  top:    convertMillimetersToTwip(50),
+  bottom: convertMillimetersToTwip(30),
+  right:  convertMillimetersToTwip(30),
+  left:   convertMillimetersToTwip(40),
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Párrafo de texto normal (justificado, sangría 1ª línea, sin espacio extra) */
+function bodyParagraph(text: string, opts?: { alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] }): Paragraph {
+  return new Paragraph({
+    style: 'BodyText',
+    alignment: opts?.alignment ?? AlignmentType.JUSTIFIED,
+    children: [new TextRun({ text, font: FONT, size: FONT_SIZE, color: BLACK })],
+    spacing: { line: LINE_15, before: PARA_SPACE_BEFORE, after: PARA_SPACE_AFTER },
+    indent: { firstLine: INDENT_1L },
+  });
+}
+
+/** Párrafo de texto normal a partir de partes ya procesadas */
+function bodyMultiRun(children: TextRun[], opts?: { noIndent?: boolean }): Paragraph {
+  return new Paragraph({
+    style: 'BodyText',
+    alignment: AlignmentType.JUSTIFIED,
+    children,
+    spacing: { line: LINE_15, before: PARA_SPACE_BEFORE, after: PARA_SPACE_AFTER },
+    indent: opts?.noIndent ? undefined : { firstLine: INDENT_1L },
+  });
+}
+
+/** Salto de página */
+function pageBreak(): Paragraph {
+  return new Paragraph({ children: [new PageBreak()] });
+}
+
+/** Heading 1: MAYÚSCULAS, centrado, sin sangría */
+function heading1(text: string): Paragraph {
+  return new Paragraph({
+    style: 'CustomHeading1',
+    alignment: AlignmentType.CENTER,
+    children: [new TextRun({ text, font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
+    spacing: { line: LINE_15, before: 0, after: 0 },
+  });
+}
+
+/** Heading 2: Negrilla, alineado izquierda, sin sangría */
+function heading2(text: string): Paragraph {
+  return new Paragraph({
+    style: 'CustomHeading2',
+    alignment: AlignmentType.LEFT,
+    children: [new TextRun({ text, font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
+    spacing: { line: LINE_15, before: convertMillimetersToTwip(6), after: 0 },
+  });
+}
+
+/** Pie de página con número centrado */
+function pageFooter(): Footer {
+  return new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            children: [PageNumber.CURRENT],
+            font: FONT,
+            size: FONT_SIZE,
+            color: BLACK,
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+/** Convierte texto con saltos de línea en array de Paragraph */
+function textToParas(text: string): Paragraph[] {
+  return text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .map(line => bodyParagraph(line));
+}
+
+// ─── Función principal ────────────────────────────────────────────────────────
 export async function generateDocument(data: DocumentData): Promise<Buffer> {
-  const defaultFont = "Arial";
-  const defaultSize = 24; // 12pt (half-points in docx)
-  const blackColor = "000000";
-
-  const standardMargins = { 
-    top: 3 * CM_TO_TWIP, 
-    bottom: 3 * CM_TO_TWIP, 
-    right: 3 * CM_TO_TWIP, 
-    left: 4 * CM_TO_TWIP 
-  };
-
-  const chapterStartMargins = { 
-    top: 5 * CM_TO_TWIP, 
-    bottom: 3 * CM_TO_TWIP, 
-    right: 3 * CM_TO_TWIP, 
-    left: 4 * CM_TO_TWIP 
-  };
 
   const doc = new Document({
+    features: {
+      updateFields: true, // Fuerza actualización de campos (TOC) al abrir
+    },
     styles: {
       default: {
         document: {
-          run: {
-            font: defaultFont,
-            size: defaultSize,
-            color: blackColor,
-          },
+          run: { font: FONT, size: FONT_SIZE, color: BLACK },
           paragraph: {
             alignment: AlignmentType.JUSTIFIED,
-            spacing: {
-              line: 360, // 1.5 line spacing
-              before: 0,
-              after: 0,
-            },
-            indent: { firstLine: 708 }, // Sangría de primera línea APA 6
+            spacing: { line: LINE_15, before: 0, after: 0 },
           },
         },
       },
       paragraphStyles: [
+        // Body Text — estilo base para párrafos normales
         {
-          id: "Normal",
-          name: "Normal",
-          run: { font: defaultFont, size: defaultSize, color: blackColor },
-          paragraph: { 
-            alignment: AlignmentType.JUSTIFIED, 
-            spacing: { line: 360 },
-            indent: { firstLine: 708 }, // Sangría de primera línea (aprox 1.25cm o 0.5 pulgadas)
-          }
+          id: 'BodyText',
+          name: 'Body Text',
+          basedOn: 'Normal',
+          run: { font: FONT, size: FONT_SIZE, color: BLACK },
+          paragraph: {
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            indent: { firstLine: INDENT_1L },
+          },
         },
+        // Heading 1 — hereda del built-in Heading 1 para que el TOC lo reconozca
         {
-          id: "Heading1",
-          name: "Heading 1",
-          run: { font: defaultFont, size: defaultSize, color: blackColor, bold: true, allCaps: true },
-          paragraph: { alignment: AlignmentType.CENTER, spacing: { line: 360 } }
+          id: 'CustomHeading1',
+          name: 'heading 1',          // DEBE coincidir exactamente con el nombre built-in
+          basedOn: 'Normal',
+          next: 'BodyText',
+          run: { font: FONT, size: FONT_SIZE, bold: true, color: BLACK, allCaps: false },
+          paragraph: {
+            alignment: AlignmentType.CENTER,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            outlineLevel: 0,           // ← marca este estilo como nivel 1 del TOC
+          },
         },
+        // Heading 2 — hereda del built-in Heading 2 para que el TOC lo reconozca
         {
-          id: "Heading2",
-          name: "Heading 2",
-          run: { font: defaultFont, size: defaultSize, color: blackColor, bold: true },
-          paragraph: { alignment: AlignmentType.LEFT, spacing: { line: 360 } }
-        }
-      ]
+          id: 'CustomHeading2',
+          name: 'heading 2',
+          basedOn: 'Normal',
+          next: 'BodyText',
+          run: { font: FONT, size: FONT_SIZE, bold: true, color: BLACK },
+          paragraph: {
+            alignment: AlignmentType.LEFT,
+            spacing: { line: LINE_15, before: convertMillimetersToTwip(6), after: 0 },
+            outlineLevel: 1,           // ← marca este estilo como nivel 2 del TOC
+          },
+        },
+      ],
     },
+
     sections: [
-      // 1. PORTADA (No se numera)
+
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 1: PORTADA  (sin numeración)
+      // ══════════════════════════════════════════════════════════════
       {
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
-            margin: standardMargins,
+            margin: M_STD,
           },
         },
         children: [
-          new Paragraph({ children: [new TextRun({ text: "REPÚBLICA BOLIVARIANA DE VENEZUELA", bold: true })], alignment: AlignmentType.CENTER }),
-          new Paragraph({ children: [new TextRun("MINISTERIO DEL PODER POPULAR PARA LA DEFENSA")], alignment: AlignmentType.CENTER }),
-          new Paragraph({ children: [new TextRun("UNIVERSIDAD NACIONAL EXPERIMENTAL POLITÉCNICA DE LA FUERZA ARMADA NACIONAL")], alignment: AlignmentType.CENTER }),
-          new Paragraph({ children: [new TextRun("UNEFA NÚCLEO TÁCHIRA")], alignment: AlignmentType.CENTER }),
-          new Paragraph({ children: [new TextRun(" ")], spacing: { before: 1200 } }),
-          new Paragraph({ 
-            children: [new TextRun({ text: data.portada.tituloProyecto.toUpperCase(), bold: true })],
-            heading: HeadingLevel.HEADING_1,
+          // Membrete institucional
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            children: [new TextRun({ text: 'REPÚBLICA BOLIVARIANA DE VENEZUELA', font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
           }),
-          new Paragraph({ children: [new TextRun(" ")], spacing: { before: 2400 } }),
-          new Paragraph({ children: [new TextRun(`Autor: ${data.portada.nombres} ${data.portada.apellidos}`)], alignment: AlignmentType.RIGHT }),
-          new Paragraph({ children: [new TextRun(`Cédula: ${data.portada.cedula}`)], alignment: AlignmentType.RIGHT }),
-          new Paragraph({ children: [new TextRun(" ")], spacing: { before: 1200 } }),
-          new Paragraph({ children: [new TextRun(`San Cristóbal, ${data.portada.fechaMes} ${data.portada.fechaAno}`)], alignment: AlignmentType.CENTER }),
-        ]
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            children: [new TextRun({ text: 'MINISTERIO DEL PODER POPULAR PARA LA DEFENSA', font: FONT, size: FONT_SIZE, color: BLACK })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            children: [new TextRun({ text: 'UNIVERSIDAD NACIONAL EXPERIMENTAL POLITÉCNICA DE LA FUERZA ARMADA NACIONAL', font: FONT, size: FONT_SIZE, color: BLACK })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            children: [new TextRun({ text: 'UNEFA – NÚCLEO TÁCHIRA', font: FONT, size: FONT_SIZE, color: BLACK })],
+          }),
+
+          // Espacio central
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(60), after: 0 }, children: [new TextRun('')] }),
+
+          // Título del proyecto
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            children: [new TextRun({ text: data.portada.tituloProyecto.toUpperCase(), font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
+          }),
+
+          // Espacio hacia datos del autor
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(80), after: 0 }, children: [new TextRun('')] }),
+
+          // Datos del pasante (alineados a la derecha)
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            children: [new TextRun({ text: `Autor: ${data.portada.nombres} ${data.portada.apellidos}`, font: FONT, size: FONT_SIZE, color: BLACK })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            children: [new TextRun({ text: `Cédula de Identidad: V- ${data.portada.cedula}`, font: FONT, size: FONT_SIZE, color: BLACK })],
+          }),
+
+          // Espacio al pie
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(60), after: 0 }, children: [new TextRun('')] }),
+
+          // Ciudad y fecha
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { line: LINE_15, before: 0, after: 0 },
+            children: [new TextRun({ text: `${data.portada.ciudad ?? 'San Cristóbal'}, ${data.portada.fechaMes} de ${data.portada.fechaAno}`, font: FONT, size: FONT_SIZE, color: BLACK })],
+          }),
+        ],
       },
 
-      // 2. PRELIMINARES (Actas, Dedicatoria, Índice) - Números romanos
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 2: PÁGINAS PRELIMINARES  (numeración romana)
+      // ══════════════════════════════════════════════════════════════
       {
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
-            margin: standardMargins,
+            margin: M_CHAP,
             pageNumbers: { start: 1, formatType: NumberFormat.LOWER_ROMAN },
           },
         },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                  new TextRun({
-                    children: [PageNumber.CURRENT],
-                  }),
-                ],
-              }),
-            ],
-          }),
-        },
+        footers: { default: pageFooter() },
         children: [
-          // Acta Institucional
-          new Paragraph({ children: [new TextRun("ACTA DE EVALUACIÓN INSTITUCIONAL")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun(data.actasEvaluacion.actaInstitucional)] }),
-          new Paragraph({ children: [new PageBreak()] }),
 
-          // Acta Académica
-          new Paragraph({ children: [new TextRun("ACTA DE EVALUACIÓN ACADÉMICA")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun(data.actasEvaluacion.actaAcademica)] }),
-          new Paragraph({ children: [new PageBreak()] }),
+          // ── Acta Institucional ──────────────────────────────────
+          heading1('ACTA DE EVALUACIÓN INSTITUCIONAL'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+          ...textToParas(data.actasEvaluacion.actaInstitucional),
+          pageBreak(),
 
-          // Acta Evaluador
-          new Paragraph({ children: [new TextRun("ACTA DE EVALUACIÓN DEL JURADO")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun(data.actasEvaluacion.actaEvaluador)] }),
-          new Paragraph({ children: [new PageBreak()] }),
+          // ── Acta Académica ──────────────────────────────────────
+          heading1('ACTA DE EVALUACIÓN ACADÉMICA'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+          ...textToParas(data.actasEvaluacion.actaAcademica),
+          pageBreak(),
 
-          // Índice
-          new Paragraph({ children: [new TextRun("ÍNDICE")], heading: HeadingLevel.HEADING_1 }),
-          new TableOfContents("Índice", {
+          // ── Acta del Jurado ─────────────────────────────────────
+          heading1('ACTA DE EVALUACIÓN DEL JURADO'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+          ...textToParas(data.actasEvaluacion.actaEvaluador),
+          pageBreak(),
+
+          // ── Índice de Contenido ─────────────────────────────────
+          heading1('ÍNDICE DE CONTENIDO'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(8), after: 0 }, children: [new TextRun('')] }),
+          new TableOfContents('Índice de Contenido', {
             hyperlink: true,
-            headingStyleRange: "1-2",
+            headingStyleRange: '1-2',
           }),
-          new Paragraph({ children: [new PageBreak()] }),
+          pageBreak(),
 
-          // Dedicatoria
+          // ── Dedicatoria (opcional) ──────────────────────────────
           ...(data.dedicatoria ? [
-            new Paragraph({ children: [new TextRun("DEDICATORIA")], heading: HeadingLevel.HEADING_1 }),
-            new Paragraph({ children: [new TextRun(data.dedicatoria)], alignment: AlignmentType.RIGHT }),
-            new Paragraph({ children: [new PageBreak()] }),
+            heading1('DEDICATORIA'),
+            new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+            bodyParagraph(data.dedicatoria, { alignment: AlignmentType.RIGHT }),
+            pageBreak(),
           ] : []),
-        ]
+        ],
       },
 
-      // 3. INTRODUCCIÓN (Página 1, no se escribe el número)
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 3: INTRODUCCIÓN  (reinicia numeración arábiga en p. 1)
+      // ══════════════════════════════════════════════════════════════
       {
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
-            margin: chapterStartMargins,
+            margin: M_CHAP,
             pageNumbers: { start: 1, formatType: NumberFormat.DECIMAL },
           },
-          type: "nextPage",
         },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                  new TextRun({
-                    children: [PageNumber.CURRENT],
-                  }),
-                ],
-              }),
-            ],
+        footers: { default: pageFooter() },
+        children: [
+          heading1('INTRODUCCIÓN'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+          ...textToParas(data.introduccion),
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 4: CAPÍTULO I
+      // ══════════════════════════════════════════════════════════════
+      {
+        properties: {
+          page: {
+            size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
+            margin: M_CHAP,
+          },
+        },
+        children: [
+          heading1('CAPÍTULO I'),
+          heading1('INFORMACIÓN DE LA EMPRESA'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+
+          heading2('1.1 Ubicación Geográfica'),
+          ...textToParas(data.capitulo1.ubicacionGeografica),
+
+          heading2('1.2 Reseña Histórica'),
+          ...textToParas(data.capitulo1.resenaHistorica),
+
+          heading2('1.3 Misión'),
+          ...textToParas(data.capitulo1.mision),
+
+          heading2('1.4 Visión'),
+          ...textToParas(data.capitulo1.vision),
+
+          heading2('1.5 Valores'),
+          ...textToParas(data.capitulo1.valores),
+
+          heading2('1.6 Objetivos de la Institución'),
+          heading2('1.6.1 Objetivo General'),
+          ...textToParas(data.capitulo1.objetivosInstitucion.general),
+
+          heading2('1.6.2 Objetivos Específicos'),
+          ...data.capitulo1.objetivosInstitucion.especificos.map(obj =>
+            new Paragraph({
+              alignment: AlignmentType.JUSTIFIED,
+              spacing: { line: LINE_15, before: 0, after: 0 },
+              indent: { left: INDENT_1L },
+              bullet: { level: 0 },
+              children: [new TextRun({ text: obj, font: FONT, size: FONT_SIZE, color: BLACK })],
+            })
+          ),
+
+          heading2('1.7 Estructura Organizativa'),
+          ...textToParas(data.capitulo1.estructuraOrganizativa),
+
+          heading2('1.8 Descripción del Departamento'),
+          ...textToParas(data.capitulo1.descripcionDepartamento),
+
+          heading2('1.9 Nombre del Jefe o Encargado'),
+          bodyParagraph(data.capitulo1.nombreJefe),
+
+          heading2('1.10 Funciones del Departamento'),
+          ...textToParas(data.capitulo1.funcionesDepartamento),
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 5: CAPÍTULO II
+      // ══════════════════════════════════════════════════════════════
+      {
+        properties: {
+          page: {
+            size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
+            margin: M_CHAP,
+          },
+        },
+        children: [
+          heading1('CAPÍTULO II'),
+          heading1('DESCRIPCIÓN DEL PROYECTO'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+
+          heading2('2.1 Título del Proyecto'),
+          bodyParagraph(data.capitulo2.tituloProyecto),
+
+          heading2('2.2 Planteamiento del Problema'),
+          ...textToParas(data.capitulo2.planteamientoProblema),
+
+          heading2('2.3 Objetivos'),
+          heading2('2.3.1 Objetivo General'),
+          ...textToParas(data.capitulo2.objetivos.general),
+
+          heading2('2.3.2 Objetivos Específicos'),
+          ...data.capitulo2.objetivos.especificos.map(obj =>
+            new Paragraph({
+              alignment: AlignmentType.JUSTIFIED,
+              spacing: { line: LINE_15, before: 0, after: 0 },
+              indent: { left: INDENT_1L },
+              bullet: { level: 0 },
+              children: [new TextRun({ text: obj, font: FONT, size: FONT_SIZE, color: BLACK })],
+            })
+          ),
+
+          heading2('2.4 Justificación'),
+          ...textToParas(data.capitulo2.justificacion),
+
+          heading2('2.5 Alcance'),
+          ...textToParas(data.capitulo2.alcance),
+
+          heading2('2.6 Limitaciones'),
+          ...textToParas(data.capitulo2.limitaciones),
+        ],
+      },
+
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 6: CAPÍTULO III — GANTT (Horizontal)
+      // ══════════════════════════════════════════════════════════════
+      {
+        properties: {
+          page: {
+            size: {
+              orientation: PageOrientation.LANDSCAPE,
+              width: convertInchesToTwip(11),
+              height: convertInchesToTwip(8.5),
+            },
+            margin: {
+              top: convertMillimetersToTwip(50),
+              bottom: convertMillimetersToTwip(30),
+              right: convertMillimetersToTwip(30),
+              left: convertMillimetersToTwip(40),
+            },
+          },
+        },
+        children: [
+          heading1('CAPÍTULO III'),
+          heading1('PLAN DE ACTIVIDADES'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+
+          heading2('3.1 Diagrama de Gantt'),
+          ...textToParas(data.capitulo3.diagramaGanttText),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { line: LINE_15, before: convertMillimetersToTwip(20), after: convertMillimetersToTwip(20) },
+            children: [new TextRun({ text: '[Diagrama de Gantt — insertar imagen aquí]', font: FONT, size: FONT_SIZE, color: BLACK, italics: true })],
           }),
-        },
-        children: [
-          new Paragraph({ children: [new TextRun("INTRODUCCIÓN")], heading: HeadingLevel.HEADING_1 }),
-          ...data.introduccion.split('\n').map(p => new Paragraph({ children: [new TextRun(p)] })),
-        ]
+        ],
       },
 
-      // 4. CAPÍTULO I (Comienza en página 2)
-      {
-        properties: {
-          page: {
-            size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
-            margin: chapterStartMargins,
-          },
-        },
-        children: [
-          new Paragraph({ children: [new TextRun("CAPÍTULO I")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun("INFORMACIÓN DE LA EMPRESA")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun("1.1 Ubicación Geográfica")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.ubicacionGeografica)] }),
-          new Paragraph({ children: [new TextRun("1.2 Reseña Histórica")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.resenaHistorica)] }),
-          new Paragraph({ children: [new TextRun("1.3 Misión")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.mision)] }),
-          new Paragraph({ children: [new TextRun("1.4 Visión")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.vision)] }),
-          new Paragraph({ children: [new TextRun("1.5 Valores")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.valores)] }),
-          new Paragraph({ children: [new TextRun("1.6 Objetivos de la Institución")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun("1.6.1 Objetivo General")], heading: HeadingLevel.HEADING_2, spacing: { before: 200 } }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.objetivosInstitucion.general)] }),
-          new Paragraph({ children: [new TextRun("1.6.2 Objetivos Específicos")], heading: HeadingLevel.HEADING_2, spacing: { before: 200 } }),
-          ...data.capitulo1.objetivosInstitucion.especificos.map(obj => new Paragraph({ children: [new TextRun(`- ${obj}`)] })),
-          new Paragraph({ children: [new TextRun("1.7 Estructura Organizativa")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.estructuraOrganizativa)] }),
-          new Paragraph({ children: [new TextRun("1.8 Descripción del Departamento")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.descripcionDepartamento)] }),
-          new Paragraph({ children: [new TextRun("1.9 Nombre del Jefe o Encargado")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.nombreJefe)] }),
-          new Paragraph({ children: [new TextRun("1.10 Funciones del Departamento")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo1.funcionesDepartamento)] }),
-        ]
-      },
-
-      // 5. CAPÍTULO II
-      {
-        properties: {
-          page: {
-            size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
-            margin: chapterStartMargins,
-          },
-        },
-        children: [
-          new Paragraph({ children: [new TextRun("CAPÍTULO II")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun("RESUMEN")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun("2.1 Título del Proyecto")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo2.tituloProyecto)] }),
-          new Paragraph({ children: [new TextRun("2.2 Planteamiento del Problema")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo2.planteamientoProblema)] }),
-          new Paragraph({ children: [new TextRun("2.3 Objetivos")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun("2.3.1 Objetivo General")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo2.objetivos.general)] }),
-          new Paragraph({ children: [new TextRun("2.3.2 Objetivos Específicos")], heading: HeadingLevel.HEADING_2 }),
-          ...data.capitulo2.objetivos.especificos.map(obj => new Paragraph({ children: [new TextRun(`- ${obj}`)] })),
-          new Paragraph({ children: [new TextRun("2.4 Justificación")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo2.justificacion)] }),
-          new Paragraph({ children: [new TextRun("2.5 Alcance")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo2.alcance)] }),
-          new Paragraph({ children: [new TextRun("2.6 Limitaciones")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun(data.capitulo2.limitaciones)] }),
-        ]
-      },
-
-      // 6. CAPÍTULO III (Gantt Horizontal)
-      {
-        properties: {
-          page: {
-            size: { orientation: PageOrientation.LANDSCAPE, width: convertInchesToTwip(11), height: convertInchesToTwip(8.5) },
-            margin: standardMargins,
-          },
-        },
-        children: [
-          new Paragraph({ children: [new TextRun("CAPÍTULO III")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun("PLAN DE ACTIVIDADES")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun("3.1 Diagrama de Gantt")], heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ children: [new TextRun("Indicar que el diagrama de Gantt debe ir en esta hoja en sentido horizontal.")], alignment: AlignmentType.CENTER, spacing: { before: 400 } }),
-          new Paragraph({ children: [new TextRun(data.capitulo3.diagramaGanttText)] }),
-        ]
-      },
-
-      // 7. CAPÍTULO III Cont. (Vertical)
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 7: CAPÍTULO III — Actividades (Vertical)
+      // ══════════════════════════════════════════════════════════════
       {
         properties: {
           page: {
             size: { orientation: PageOrientation.PORTRAIT, width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
-            margin: standardMargins,
+            margin: M_STD,
           },
         },
         children: [
-          new Paragraph({ children: [new TextRun("3.2 Descripción de las Actividades")], heading: HeadingLevel.HEADING_2 }),
+          heading2('3.2 Descripción de las Actividades por Semana'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(8), after: 0 }, children: [new TextRun('')] }),
           ...data.capitulo3.descripcionActividadesSemanas.flatMap(a => [
-            new Paragraph({ children: [new TextRun(a.semana)], heading: HeadingLevel.HEADING_2, spacing: { before: 200 } }),
-            new Paragraph({ children: [new TextRun(a.descripcion)] }),
+            heading2(a.semana),
+            ...textToParas(a.descripcion),
           ]),
-          new Paragraph({ children: [new TextRun("3.3 Logros de las Actividades")], heading: HeadingLevel.HEADING_2, spacing: { before: 400 } }),
-          new Paragraph({ children: [new TextRun(data.capitulo3.logrosActividades)] }),
-        ]
+
+          heading2('3.3 Logros de las Actividades'),
+          ...textToParas(data.capitulo3.logrosActividades),
+        ],
       },
 
-      // 8. CAPÍTULO IV
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 8: CAPÍTULO IV
+      // ══════════════════════════════════════════════════════════════
       {
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
-            margin: chapterStartMargins,
+            margin: M_CHAP,
           },
         },
         children: [
-          new Paragraph({ children: [new TextRun("CAPÍTULO IV")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun("CONOCIMIENTOS ADQUIRIDOS")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun(data.capitulo4.conocimientosAdquiridos)] }),
-        ]
+          heading1('CAPÍTULO IV'),
+          heading1('CONOCIMIENTOS ADQUIRIDOS'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+          ...textToParas(data.capitulo4.conocimientosAdquiridos),
+        ],
       },
 
-      // 9. CONCLUSIONES
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 9: CONCLUSIONES
+      // ══════════════════════════════════════════════════════════════
       {
-        properties: {
-          page: { margin: chapterStartMargins },
-        },
+        properties: { page: { margin: M_CHAP } },
         children: [
-          new Paragraph({ children: [new TextRun("CONCLUSIONES")], heading: HeadingLevel.HEADING_1 }),
-          ...data.conclusiones.split('\n').map(p => new Paragraph({ children: [new TextRun(p)] })),
-        ]
+          heading1('CONCLUSIONES'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+          ...textToParas(data.conclusiones),
+        ],
       },
 
-      // 10. RECOMENDACIONES
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 10: RECOMENDACIONES
+      // ══════════════════════════════════════════════════════════════
       {
-        properties: {
-          page: { margin: chapterStartMargins },
-        },
+        properties: { page: { margin: M_CHAP } },
         children: [
-          new Paragraph({ children: [new TextRun("RECOMENDACIONES")], heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ children: [new TextRun("A la Universidad")], heading: HeadingLevel.HEADING_2, spacing: { before: 200 } }),
-          new Paragraph({ children: [new TextRun(data.recomendaciones.universidad)] }),
-          new Paragraph({ children: [new TextRun("A la Institución")], heading: HeadingLevel.HEADING_2, spacing: { before: 200 } }),
-          new Paragraph({ children: [new TextRun(data.recomendaciones.institucion)] }),
-          new Paragraph({ children: [new TextRun("A los Nuevos Pasantes")], heading: HeadingLevel.HEADING_2, spacing: { before: 200 } }),
-          new Paragraph({ children: [new TextRun(data.recomendaciones.nuevosPasantes)] }),
-        ]
+          heading1('RECOMENDACIONES'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+
+          heading2('A la Universidad'),
+          ...textToParas(data.recomendaciones.universidad),
+
+          heading2('A la Institución'),
+          ...textToParas(data.recomendaciones.institucion),
+
+          heading2('A los Nuevos Pasantes'),
+          ...textToParas(data.recomendaciones.nuevosPasantes),
+        ],
       },
 
-      // 11. GLOSARIO
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 11: GLOSARIO
+      // ══════════════════════════════════════════════════════════════
       {
-        properties: { page: { margin: chapterStartMargins } },
+        properties: { page: { margin: M_CHAP } },
         children: [
-          new Paragraph({ children: [new TextRun("GLOSARIO")], heading: HeadingLevel.HEADING_1 }),
-          ...data.glosario.map(t => new Paragraph({
-            children: [
-              new TextRun({ text: `${t.termino}: `, bold: true }),
-              new TextRun(t.definicion)
-            ]
-          }))
-        ]
+          heading1('GLOSARIO'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+          ...data.glosario.map(t =>
+            bodyMultiRun([
+              new TextRun({ text: `${t.termino}: `, font: FONT, size: FONT_SIZE, bold: true, color: BLACK }),
+              new TextRun({ text: t.definicion, font: FONT, size: FONT_SIZE, color: BLACK }),
+            ], { noIndent: true })
+          ),
+        ],
       },
 
-      // 12. BIBLIOGRAFÍA
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 12: BIBLIOGRAFÍA (APA 6 — Sangría francesa)
+      // ══════════════════════════════════════════════════════════════
       {
-        properties: { page: { margin: chapterStartMargins } },
+        properties: { page: { margin: M_CHAP } },
         children: [
-          new Paragraph({ children: [new TextRun("BIBLIOGRAFÍA")], heading: HeadingLevel.HEADING_1 }),
-          ...data.bibliografia.map(b => new Paragraph({
-            children: [new TextRun(b)],
-            indent: { left: 720, hanging: 720 }, // Sangría francesa
-            spacing: { after: 360 } // Un espacio de 1.5 cm aprox entre citas
-          }))
-        ]
+          heading1('BIBLIOGRAFÍA'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+          ...data.bibliografia.map(ref =>
+            new Paragraph({
+              alignment: AlignmentType.JUSTIFIED,
+              spacing: { line: LINE_15, before: 0, after: convertMillimetersToTwip(6) },
+              indent: { left: INDENT_1L, hanging: INDENT_1L }, // Sangría francesa APA
+              children: [new TextRun({ text: ref, font: FONT, size: FONT_SIZE, color: BLACK })],
+            })
+          ),
+        ],
       },
 
-      // 13. ANEXOS
+      // ══════════════════════════════════════════════════════════════
+      // SECCIÓN 13: ANEXOS
+      // ══════════════════════════════════════════════════════════════
       {
-        properties: { page: { margin: chapterStartMargins } },
+        properties: { page: { margin: M_CHAP } },
         children: [
-          new Paragraph({ children: [new TextRun("ANEXOS")], heading: HeadingLevel.HEADING_1 }),
-          ...data.anexosText.split('\n').map(p => new Paragraph({ children: [new TextRun(p)] })),
-        ]
-      }
+          heading1('ANEXOS'),
+          new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
+          ...textToParas(data.anexosText),
+        ],
+      },
+
     ],
   });
 
   return await Packer.toBuffer(doc);
 }
-
