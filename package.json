@@ -9,9 +9,18 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@langchain/google-genai": "^2.1.26",
+    "clsx": "^2.1.1",
+    "docx": "^9.6.1",
+    "exceljs": "^4.4.0",
+    "langchain": "^1.2.36",
+    "lucide-react": "^0.577.0",
+    "mammoth": "^1.12.0",
     "next": "16.2.1",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

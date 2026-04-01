@@ -1,65 +1,462 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { getRevisionRules, RevisionRule } from '@/lib/rules';
+import { Upload, FileText, CheckCircle, ArrowRight, Loader2, Settings, Key, Eye, EyeOff, ExternalLink, Palette, ChevronRight, Download, AlertCircle, MessageSquare } from 'lucide-react';
 
 export default function Home() {
+  const [rules, setRules] = useState<RevisionRule[]>([]);
+  const [selectedRuleId, setSelectedRuleId] = useState<string>('');
+  const [file, setFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processedData, setProcessedData] = useState<any>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [includeGantt, setIncludeGantt] = useState(true);
+  const [ganttTheme, setGanttTheme] = useState('institutional');
+  const [apiKey, setApiKey] = useState('');
+  const [userPrompt, setUserPrompt] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  
+  // Estados para la edición interactiva
+  const [editableGanttData, setEditableGanttData] = useState<any[]>([]);
+  const [signatures, setSignatures] = useState({
+    tutorAcademico: '',
+    tutorInstitucional: '',
+    pasante: ''
+  });
+
+  useEffect(() => {
+    setRules(getRevisionRules());
+    if (getRevisionRules().length > 0) {
+      setSelectedRuleId(getRevisionRules()[0].id);
+    }
+    
+    // Cargar API Key de localStorage
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) setApiKey(savedKey);
+  }, []);
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    localStorage.setItem('gemini_api_key', value);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+      setResult(null);
+      setProcessedData(null);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file || !selectedRuleId || !apiKey) return;
+
+    setIsProcessing(true);
+    setResult(null);
+    setProcessedData(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('ruleId', selectedRuleId);
+    formData.append('includeGantt', String(includeGantt));
+    formData.append('apiKey', apiKey);
+    formData.append('userPrompt', userPrompt);
+
+    try {
+      const response = await fetch('/api/process', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Error al procesar el documento');
+      }
+
+      const data = await response.json();
+      setProcessedData(data);
+      
+      // Inicializar datos editables
+      setEditableGanttData(data.capitulo3.diagramaGanttData || []);
+      setSignatures({
+        tutorAcademico: data.firmasGantt?.tutorAcademico || '',
+        tutorInstitucional: data.firmasGantt?.tutorInstitucional || '',
+        pasante: data.firmasGantt?.pasante || `${data.portada.nombres} ${data.portada.apellidos}`
+      });
+
+      setResult(includeGantt 
+        ? "Documento procesado. Ahora puedes ajustar el Cronograma de 3 Niveles." 
+        : "Documento procesado exitosamente.");
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const toggleWeek = (objIdx: number, actIdx: number, tareaIdx: number, week: number) => {
+    const newData = [...editableGanttData];
+    const tarea = newData[objIdx].actividades[actIdx].tareas[tareaIdx];
+    if (tarea.semanas.includes(week)) {
+      tarea.semanas = tarea.semanas.filter((w: number) => w !== week);
+    } else {
+      tarea.semanas = [...tarea.semanas, week].sort((a, b) => a - b);
+    }
+    setEditableGanttData(newData);
+  };
+
+  const downloadFile = async (endpoint: string, filename: string) => {
+    if (!processedData) return;
+    
+    // Preparar data final con ediciones
+    const finalData = {
+      ...processedData,
+      capitulo3: {
+        ...processedData.capitulo3,
+        diagramaGanttData: editableGanttData
+      },
+      firmasGantt: signatures,
+      ganttTheme: ganttTheme
+    };
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(finalData),
+      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error: any) {
+      alert("Error al descargar el archivo: " + error.message);
+    }
+  };
+
+  const selectedRule = rules.find(r => r.id === selectedRuleId);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
+            WordWritter <span className="text-indigo-600">PRO</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-lg text-gray-600">
+            Revisión académica y generación de diagramas institucionales
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Columna Izquierda: Configuración */}
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
+                    <Settings className="w-4 h-4 mr-2 text-indigo-500" />
+                    Regla de Revisión
+                  </label>
+                  <select
+                    value={selectedRuleId}
+                    onChange={(e) => setSelectedRuleId(e.target.value)}
+                    className="block w-full pl-3 pr-10 py-3 text-base text-gray-900 border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm rounded-xl border appearance-none bg-white font-medium"
+                  >
+                    {rules.map((rule) => (
+                      <option key={rule.id} value={rule.id} className="text-gray-900">
+                        {rule.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedRule && (
+                    <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                      <p className="text-sm text-indigo-800 italic leading-relaxed">
+                        {selectedRule.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
+                      <Key className="w-4 h-4 mr-2 text-yellow-500" />
+                      Google Gemini API Key <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <a 
+                      href="https://aistudio.google.com/app/apikey" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center bg-indigo-50 px-2 py-1 rounded-md"
+                    >
+                      <ExternalLink size={10} className="mr-1" />
+                      OBTENER KEY
+                    </a>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      value={apiKey}
+                      onChange={(e) => handleApiKeyChange(e.target.value)}
+                      placeholder="AIzaSy..."
+                      className="w-full pl-4 pr-12 py-3 text-sm text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-300"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                    >
+                      {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 italic">
+                    * Obligatorio para procesar el documento. Se guarda localmente.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-gray-100">
+                  <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
+                    <MessageSquare className="w-4 h-4 mr-2 text-blue-500" />
+                    Instrucciones Específicas
+                  </label>
+                  <textarea
+                    value={userPrompt}
+                    onChange={(e) => setUserPrompt(e.target.value.slice(0, 1000))}
+                    placeholder="Ej: Mantén un tono formal, enfatiza la metodología técnica, etc."
+                    className="w-full p-4 text-sm text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px] resize-none"
+                  />
+                  <div className="flex justify-end">
+                    <span className="text-[10px] text-gray-400 font-medium">
+                      {userPrompt.length} / 1000 caracteres
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-gray-100">
+                  <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-xl border border-green-100">
+                    <input
+                      type="checkbox"
+                      id="includeGantt"
+                      checked={includeGantt}
+                      onChange={(e) => setIncludeGantt(e.target.checked)}
+                      className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
+                    />
+                    <label htmlFor="includeGantt" className="text-sm font-bold text-green-800 cursor-pointer">
+                      Generar Diagrama de Gantt
+                    </label>
+                  </div>
+
+                  {includeGantt && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <label className="flex items-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                        <Palette className="w-3 h-3 mr-1 text-indigo-500" />
+                        Estilo Visual y Layout
+                      </label>
+                      <select
+                        value={ganttTheme}
+                        onChange={(e) => setGanttTheme(e.target.value)}
+                        className="block w-full pl-3 pr-10 py-2 text-xs text-gray-900 border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg border appearance-none bg-white font-semibold"
+                      >
+                        <option value="institutional">🏛️ Institucional (Clásico)</option>
+                        <option value="corporate">🏢 Corporativo (Moderno)</option>
+                        <option value="academic">🎓 Académico (Técnico)</option>
+                        <option value="modern">✨ Moderno (Premium)</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Columna Derecha: Archivo */}
+              <div className="space-y-4">
+                <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
+                  <FileText className="w-4 h-4 mr-2 text-indigo-500" />
+                  Archivo Word (.docx)
+                </label>
+                <div className="mt-1 flex justify-center px-6 pt-10 pb-10 border-2 border-gray-200 border-dashed rounded-2xl hover:border-indigo-400 transition-all bg-gray-50/50">
+                  <div className="space-y-1 text-center">
+                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                    <div className="flex text-sm text-gray-600">
+                      <label
+                        htmlFor="file-upload"
+                        className="relative cursor-pointer bg-transparent rounded-md font-bold text-indigo-600 hover:text-indigo-500 focus-within:outline-none"
+                      >
+                        <span>Selecciona un documento</span>
+                        <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".docx" onChange={handleFileChange} />
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500">Solo archivos .docx universitarios</p>
+                  </div>
+                </div>
+                {file && (
+                  <div className="flex items-center space-x-2 text-sm text-indigo-600 font-medium bg-indigo-50 p-2 rounded-lg">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>{file.name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={!file || isProcessing}
+              className={`w-full flex items-center justify-center py-4 px-4 rounded-xl shadow-lg text-lg font-bold text-white transition-all transform active:scale-95 ${
+                !file || isProcessing ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-200'
+              }`}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" />
+                  Procesando con IA...
+                </>
+              ) : (
+                <>
+                  Iniciar Procesamiento
+                  <ArrowRight className="ml-2 h-6 w-6" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Resultado y Editor de Gantt */}
+          {processedData && (
+            <div className="border-t border-gray-100 p-8 bg-indigo-50/50 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="bg-green-100 p-2 rounded-full mr-3">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-indigo-950">¡Análisis Completado!</h3>
+                </div>
+              </div>
+
+              {includeGantt && editableGanttData.length > 0 && (
+                <div className="space-y-6">
+                  {/* Editor de Firmas */}
+                  <div className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4">
+                    <h4 className="text-sm font-bold text-indigo-900 uppercase">Validación Institucional</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Tutor Académico</label>
+                        <input 
+                          type="text" 
+                          value={signatures.tutorAcademico} 
+                          onChange={(e) => setSignatures({...signatures, tutorAcademico: e.target.value})}
+                          placeholder="Nombre y Apellidos"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Tutor Institucional</label>
+                        <input 
+                          type="text" 
+                          value={signatures.tutorInstitucional} 
+                          onChange={(e) => setSignatures({...signatures, tutorInstitucional: e.target.value})}
+                          placeholder="Nombre y Apellidos"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Pasante</label>
+                        <input 
+                          type="text" 
+                          value={signatures.pasante} 
+                          onChange={(e) => setSignatures({...signatures, pasante: e.target.value})}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Editor Jerárquico de Gantt */}
+                  <div className="overflow-hidden bg-white rounded-2xl border border-indigo-100 shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 text-[10px]">
+                        <thead className="bg-indigo-900 text-white">
+                          <tr>
+                            <th className="px-3 py-3 text-left font-bold uppercase w-48">Objetivo / Actividad / Tareas</th>
+                            {Array.from({ length: 14 }, (_, i) => (
+                              <th key={i} className="px-1 py-3 text-center border-l border-indigo-800 w-8">
+                                S{i + 1}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                          {editableGanttData.map((obj: any, objIdx: number) => (
+                            obj.actividades.map((act: any, actIdx: number) => (
+                              act.tareas.map((tarea: any, tareaIdx: number) => (
+                                <tr key={`${objIdx}-${actIdx}-${tareaIdx}`} className="hover:bg-indigo-50/50 transition-colors">
+                                  <td className="px-3 py-2 border-r border-gray-50">
+                                     {actIdx === 0 && tareaIdx === 0 && (
+                                       <div className="font-bold text-indigo-900 mb-1 border-b border-indigo-50 pb-1">{obj.objetivo}</div>
+                                     )}
+                                     {tareaIdx === 0 && (
+                                       <div className="font-semibold text-gray-700 mb-1 pl-1 italic">{act.descripcion}</div>
+                                     )}
+                                     <div className="text-gray-500 pl-3 border-l border-indigo-200">— {tarea.descripcion}</div>
+                                  </td>
+                                  {Array.from({ length: 14 }, (_, i) => {
+                                    const isSelected = tarea.semanas.includes(i + 1);
+                                    return (
+                                      <td 
+                                        key={i} 
+                                        onClick={() => toggleWeek(objIdx, actIdx, tareaIdx, i + 1)}
+                                        className={`cursor-pointer border-l border-gray-50 text-center transition-all ${isSelected ? 'bg-red-600 text-white' : 'hover:bg-red-50'}`}
+                                      >
+                                        {isSelected ? '●' : ''}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))
+                            ))
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button
+                  onClick={() => downloadFile('/api/export/word', `revisado_${file?.name || 'documento'}`)}
+                  className="flex items-center justify-center py-4 px-4 bg-white border-2 border-indigo-100 rounded-xl text-indigo-900 font-bold hover:bg-gray-50 transition-all shadow-sm"
+                >
+                  <FileText className="w-5 h-5 mr-2" />
+                  Descargar Word FINAL
+                </button>
+                
+                {includeGantt && (
+                  <button
+                    onClick={() => downloadFile('/api/export/excel', `gantt_${file?.name.replace('.docx', '') || 'plan'}.xlsx`)}
+                    className="flex items-center justify-center py-4 px-4 bg-indigo-600 border-2 border-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-700 transition-all shadow-md active:shadow-inner"
+                  >
+                    <FileText className="w-5 h-5 mr-2" />
+                    Descargar Excel GANTT
+                  </button>
+                )}
+              </div>
+
+              {result && (
+                <p className="text-center text-sm text-indigo-600 italic font-medium">
+                  {result}
+                </p>
+              )}
+            </div>
+          )}
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

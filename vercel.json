@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "regions": ["sfo1"],
+  "functions": {
+    "src/app/api/process/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "src/app/api/export/excel/route.ts": {
+      "maxDuration": 30,
+      "memory": 512
+    }
+  }
+}
