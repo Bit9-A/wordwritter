@@ -9,6 +9,8 @@ export default function Home() {
   const [selectedRuleId, setSelectedRuleId] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [processedData, setProcessedData] = useState<any>(null);
   const [result, setResult] = useState<string | null>(null);
   const [includeGantt, setIncludeGantt] = useState(true);
@@ -36,6 +38,14 @@ export default function Home() {
     // Cargar API Key de localStorage
     const savedKey = localStorage.getItem('gemini_api_key');
     if (savedKey) setApiKey(savedKey);
+    setIsMounted(true);
+
+    // Inicializar anuncios de Google si existen en el DOM
+    try {
+      ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+    } catch (e) {
+      console.error("AdSense error:", e);
+    }
   }, []);
 
   const handleApiKeyChange = (value: string) => {
@@ -333,22 +343,19 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Placeholder de Anuncio (Monetización) */}
-                <div className="pt-6 border-t border-gray-100">
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center min-h-32 text-center relative overflow-hidden group">
-                    <div className="absolute top-2 right-2 flex space-x-1">
-                      <span className="bg-indigo-100 text-indigo-600 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Ad</span>
-                      <button type="button" className="text-gray-300 hover:text-indigo-500 transition-colors">
-                        <AlertCircle size={8} />
-                      </button>
-                    </div>
-                    <div className="w-12 h-12 bg-indigo-100 rounded-lg mb-2 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
-                      <ExternalLink size={20} />
-                    </div>
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Espacio Publicitario</p>
-                    <p className="text-[9px] text-gray-400 italic px-4 leading-tight">
-                      Este es un espacio reservado para patrocinios o anuncios que ayudan a mantener el servidor.
-                    </p>
+                {/* Bloque de Anuncio (Google AdSense) */}
+                <div className="pt-6 border-t border-gray-100 flex justify-center overflow-hidden">
+                  <div className="w-full max-w-xs bg-gray-50 rounded-xl overflow-hidden min-h-25 border border-gray-100 p-2">
+                    {/* App */}
+                    {isMounted && (
+                      <ins className="adsbygoogle"
+                           style={{ display: 'block' }}
+                           data-ad-client="ca-pub-6219970220596393"
+                           data-ad-slot="8730014249"
+                           data-ad-format="auto"
+                           data-full-width-responsive="true"></ins>
+                    )}
+                    <p className="text-[8px] text-gray-300 text-center mt-1 uppercase font-bold tracking-widest">Publicidad</p>
                   </div>
                 </div>
               </div>
