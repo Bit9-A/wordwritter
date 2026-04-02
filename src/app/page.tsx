@@ -29,7 +29,7 @@ import { getRevisionRules, RevisionRule } from '@/lib/rules';
 import { translations, Language } from '@/lib/i18n';
 
 // Spring physics for all animations
-const spring = { type: "spring", stiffness: 100, damping: 20 };
+const spring = { type: "spring" as const, stiffness: 100, damping: 20 };
 
 export default function Home() {
   const [rules, setRules] = useState<RevisionRule[]>([]);
