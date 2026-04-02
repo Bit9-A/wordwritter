@@ -527,7 +527,8 @@ export default function Home() {
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="bg-white div                          {(editableGanttData || []).map((obj: any, objIdx: number) => (
+                        <tbody className="bg-white divide-y divide-gray-100">
+                          {(editableGanttData || []).map((obj: any, objIdx: number) => (
                             (obj.actividades || []).map((act: any, actIdx: number) => (
                               (act.tareas || []).map((tarea: any, tareaIdx: number) => (
                                 <tr key={`${objIdx}-${actIdx}-${tareaIdx}`} className="hover:bg-indigo-50/50 transition-colors">
@@ -556,7 +557,6 @@ export default function Home() {
                               ))
                             ))
                           ))}
-                        ))}
                         </tbody>
                       </table>
                     </div>
