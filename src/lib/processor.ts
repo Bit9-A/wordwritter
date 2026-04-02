@@ -58,11 +58,24 @@ export async function processDocumentLocally(options: ProcessOptions) {
     temperature: 0.1, // Más determinismo para JSON
   });
 
+  const systemPrompt = `Eres un asistente experto en redacción académica y normativa institucional (UNEFA). 
+      Tu objetivo es analizar informes de pasantías y reconstruirlos siguiendo un esquema JSON estricto.
+      
+      REGLAS CRÍTICAS:
+      1. NO omitas ninguna sección del esquema JSON, incluso si la información es escasa o el archivo es grande.
+      2. Si falta información explícita, infiérela del contexto del documento de forma profesional.
+      3. Genera un contenido denso y técnico para cada capítulo (mínimo 500 palabras por sección si es posible).
+      4. El campo 'descripcionActividadesSemanas' DEBE contener exactamente 14 semanas.
+      5. La respuesta debe ser ÚNICAMENTE el objeto JSON, sin explicaciones adicionales.
+      6. MANTÉN el formato de respuesta completo pase lo que pase. Nunca digas "continuará" o "..." dentro del JSON.`;
+
   const lengthWarning = isTooLarge 
     ? "IMPORTANTE: El documento fuente es MUY EXTENSO. Sé extremadamente conciso y directo en las secciones narrativas (introducción, justificación) para evitar que la respuesta sea truncada. Prioriza la calidad estructural sobre la extensión."
     : "";
 
   const promptTemplate = PromptTemplate.fromTemplate(`
+    ${systemPrompt}
+
     Actúa como un tutor académico experto y redactor de Informes de Práctica Profesional. 
     Tu único objetivo es generar un objeto JSON válido que contenga la redacción del informe.
     

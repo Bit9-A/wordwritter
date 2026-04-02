@@ -132,6 +132,7 @@ function pageFooter(): Footer {
 
 /** Convierte texto con saltos de línea en array de Paragraph */
 function textToParas(text: string): Paragraph[] {
+  if (!text) return [];
   return text
     .split('\n')
     .map(line => line.trim())
@@ -239,7 +240,7 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { line: LINE_15, before: 0, after: 0 },
-            children: [new TextRun({ text: data.portada.tituloProyecto.toUpperCase(), font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
+            children: [new TextRun({ text: (data.portada?.tituloProyecto || 'SIN TÍTULO').toUpperCase(), font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
           }),
 
           // Espacio hacia datos del autor
@@ -249,12 +250,12 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           new Paragraph({
             alignment: AlignmentType.RIGHT,
             spacing: { line: LINE_15, before: 0, after: 0 },
-            children: [new TextRun({ text: `Autor: ${data.portada.nombres} ${data.portada.apellidos}`, font: FONT, size: FONT_SIZE, color: BLACK })],
+            children: [new TextRun({ text: `Autor: ${data.portada?.nombres || ''} ${data.portada?.apellidos || ''}`, font: FONT, size: FONT_SIZE, color: BLACK })],
           }),
           new Paragraph({
             alignment: AlignmentType.RIGHT,
             spacing: { line: LINE_15, before: 0, after: 0 },
-            children: [new TextRun({ text: `Cédula de Identidad: V- ${data.portada.cedula}`, font: FONT, size: FONT_SIZE, color: BLACK })],
+            children: [new TextRun({ text: `Cédula de Identidad: V- ${data.portada?.cedula || ''}`, font: FONT, size: FONT_SIZE, color: BLACK })],
           }),
 
           // Espacio al pie
@@ -264,7 +265,7 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { line: LINE_15, before: 0, after: 0 },
-            children: [new TextRun({ text: `${data.portada.ciudad ?? 'San Cristóbal'}, ${data.portada.fechaMes} de ${data.portada.fechaAno}`, font: FONT, size: FONT_SIZE, color: BLACK })],
+            children: [new TextRun({ text: `${data.portada?.ciudad ?? 'San Cristóbal'}, ${data.portada?.fechaMes || ''} de ${data.portada?.fechaAno || ''}`, font: FONT, size: FONT_SIZE, color: BLACK })],
           }),
         ],
       },
@@ -286,19 +287,19 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           // ── Acta Institucional ──────────────────────────────────
           heading1('ACTA DE EVALUACIÓN INSTITUCIONAL'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...textToParas(data.actasEvaluacion.actaInstitucional),
+          ...textToParas(data.actasEvaluacion?.actaInstitucional || ''),
           pageBreak(),
 
           // ── Acta Académica ──────────────────────────────────────
           heading1('ACTA DE EVALUACIÓN ACADÉMICA'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...textToParas(data.actasEvaluacion.actaAcademica),
+          ...textToParas(data.actasEvaluacion?.actaAcademica || ''),
           pageBreak(),
 
           // ── Acta del Jurado ─────────────────────────────────────
           heading1('ACTA DE EVALUACIÓN DEL JURADO'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...textToParas(data.actasEvaluacion.actaEvaluador),
+          ...textToParas(data.actasEvaluacion?.actaEvaluador || ''),
           pageBreak(),
 
           // ── Índice de Contenido ─────────────────────────────────
@@ -335,7 +336,7 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
         children: [
           heading1('INTRODUCCIÓN'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...textToParas(data.introduccion),
+          ...textToParas(data.introduccion || ''),
         ],
       },
 
@@ -355,26 +356,26 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
 
           heading2('1.1 Ubicación Geográfica'),
-          ...textToParas(data.capitulo1.ubicacionGeografica),
+          ...textToParas(data.capitulo1?.ubicacionGeografica || ''),
 
           heading2('1.2 Reseña Histórica'),
-          ...textToParas(data.capitulo1.resenaHistorica),
+          ...textToParas(data.capitulo1?.resenaHistorica || ''),
 
           heading2('1.3 Misión'),
-          ...textToParas(data.capitulo1.mision),
+          ...textToParas(data.capitulo1?.mision || ''),
 
           heading2('1.4 Visión'),
-          ...textToParas(data.capitulo1.vision),
+          ...textToParas(data.capitulo1?.vision || ''),
 
           heading2('1.5 Valores'),
-          ...textToParas(data.capitulo1.valores),
+          ...textToParas(data.capitulo1?.valores || ''),
 
           heading2('1.6 Objetivos de la Institución'),
           heading2('1.6.1 Objetivo General'),
-          ...textToParas(data.capitulo1.objetivosInstitucion.general),
+          ...textToParas(data.capitulo1?.objetivosInstitucion?.general || ''),
 
           heading2('1.6.2 Objetivos Específicos'),
-          ...data.capitulo1.objetivosInstitucion.especificos.map(obj =>
+          ...(data.capitulo1?.objetivosInstitucion?.especificos || []).map(obj =>
             new Paragraph({
               alignment: AlignmentType.JUSTIFIED,
               spacing: { line: LINE_15, before: 0, after: 0 },
@@ -385,16 +386,16 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           ),
 
           heading2('1.7 Estructura Organizativa'),
-          ...textToParas(data.capitulo1.estructuraOrganizativa),
+          ...textToParas(data.capitulo1?.estructuraOrganizativa || ''),
 
           heading2('1.8 Descripción del Departamento'),
-          ...textToParas(data.capitulo1.descripcionDepartamento),
+          ...textToParas(data.capitulo1?.descripcionDepartamento || ''),
 
           heading2('1.9 Nombre del Jefe o Encargado'),
-          bodyParagraph(data.capitulo1.nombreJefe),
+          bodyParagraph(data.capitulo1?.nombreJefe || ''),
 
           heading2('1.10 Funciones del Departamento'),
-          ...textToParas(data.capitulo1.funcionesDepartamento),
+          ...textToParas(data.capitulo1?.funcionesDepartamento || ''),
         ],
       },
 
@@ -414,17 +415,17 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
 
           heading2('2.1 Título del Proyecto'),
-          bodyParagraph(data.capitulo2.tituloProyecto),
+          bodyParagraph(data.capitulo2?.tituloProyecto || ''),
 
           heading2('2.2 Planteamiento del Problema'),
-          ...textToParas(data.capitulo2.planteamientoProblema),
+          ...textToParas(data.capitulo2?.planteamientoProblema || ''),
 
           heading2('2.3 Objetivos'),
           heading2('2.3.1 Objetivo General'),
-          ...textToParas(data.capitulo2.objetivos.general),
+          ...textToParas(data.capitulo2?.objetivos?.general || ''),
 
           heading2('2.3.2 Objetivos Específicos'),
-          ...data.capitulo2.objetivos.especificos.map(obj =>
+          ...(data.capitulo2?.objetivos?.especificos || []).map(obj =>
             new Paragraph({
               alignment: AlignmentType.JUSTIFIED,
               spacing: { line: LINE_15, before: 0, after: 0 },
@@ -435,13 +436,13 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           ),
 
           heading2('2.4 Justificación'),
-          ...textToParas(data.capitulo2.justificacion),
+          ...textToParas(data.capitulo2?.justificacion || ''),
 
           heading2('2.5 Alcance'),
-          ...textToParas(data.capitulo2.alcance),
+          ...textToParas(data.capitulo2?.alcance || ''),
 
           heading2('2.6 Limitaciones'),
-          ...textToParas(data.capitulo2.limitaciones),
+          ...textToParas(data.capitulo2?.limitaciones || ''),
         ],
       },
 
@@ -470,7 +471,7 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
 
           heading2('3.1 Diagrama de Gantt'),
-          ...textToParas(data.capitulo3.diagramaGanttText),
+          ...textToParas(data.capitulo3?.diagramaGanttText || ''),
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { line: LINE_15, before: convertMillimetersToTwip(20), after: convertMillimetersToTwip(20) },
@@ -492,13 +493,13 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
         children: [
           heading2('3.2 Descripción de las Actividades por Semana'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(8), after: 0 }, children: [new TextRun('')] }),
-          ...data.capitulo3.descripcionActividadesSemanas.flatMap(a => [
-            heading2(a.semana),
-            ...textToParas(a.descripcion),
+          ...(data.capitulo3?.descripcionActividadesSemanas || []).flatMap(a => [
+            heading2(a.semana || 'Semana'),
+            ...textToParas(a.descripcion || ''),
           ]),
 
           heading2('3.3 Logros de las Actividades'),
-          ...textToParas(data.capitulo3.logrosActividades),
+          ...textToParas(data.capitulo3?.logrosActividades || ''),
         ],
       },
 
@@ -516,7 +517,7 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           heading1('CAPÍTULO IV'),
           heading1('CONOCIMIENTOS ADQUIRIDOS'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...textToParas(data.capitulo4.conocimientosAdquiridos),
+          ...textToParas(data.capitulo4?.conocimientosAdquiridos || ''),
         ],
       },
 
@@ -528,7 +529,7 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
         children: [
           heading1('CONCLUSIONES'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...textToParas(data.conclusiones),
+          ...textToParas(data.conclusiones || ''),
         ],
       },
 
@@ -542,13 +543,13 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
 
           heading2('A la Universidad'),
-          ...textToParas(data.recomendaciones.universidad),
+          ...textToParas(data.recomendaciones?.universidad || ''),
 
           heading2('A la Institución'),
-          ...textToParas(data.recomendaciones.institucion),
+          ...textToParas(data.recomendaciones?.institucion || ''),
 
           heading2('A los Nuevos Pasantes'),
-          ...textToParas(data.recomendaciones.nuevosPasantes),
+          ...textToParas(data.recomendaciones?.nuevosPasantes || ''),
         ],
       },
 
@@ -560,10 +561,10 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
         children: [
           heading1('GLOSARIO'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...data.glosario.map(t =>
+          ...(data.glosario || []).map(t =>
             bodyMultiRun([
-              new TextRun({ text: `${t.termino}: `, font: FONT, size: FONT_SIZE, bold: true, color: BLACK }),
-              new TextRun({ text: t.definicion, font: FONT, size: FONT_SIZE, color: BLACK }),
+              new TextRun({ text: `${t.termino || 'Término'}: `, font: FONT, size: FONT_SIZE, bold: true, color: BLACK }),
+              new TextRun({ text: t.definicion || 'Sin definición', font: FONT, size: FONT_SIZE, color: BLACK }),
             ])
           ),
         ],
@@ -577,12 +578,12 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
         children: [
           heading1('BIBLIOGRAFÍA'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...data.bibliografia.map(ref =>
+          ...(data.bibliografia || []).map(ref =>
             new Paragraph({
               alignment: AlignmentType.JUSTIFIED,
               spacing: { line: LINE_15, before: 0, after: convertMillimetersToTwip(6) },
               indent: { left: INDENT_1L, hanging: INDENT_1L }, // Sangría francesa APA
-              children: [new TextRun({ text: ref, font: FONT, size: FONT_SIZE, color: BLACK })],
+              children: [new TextRun({ text: ref || '', font: FONT, size: FONT_SIZE, color: BLACK })],
             })
           ),
         ],
@@ -596,7 +597,7 @@ export async function generateDocument(data: DocumentData): Promise<Document> {
         children: [
           heading1('ANEXOS'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...textToParas(data.anexosText),
+          ...textToParas(data.anexosText || ''),
         ],
       },
 

@@ -91,11 +91,11 @@ export default function Home() {
       setProcessedData(data);
       
       // Inicializar datos editables
-      setEditableGanttData(data.capitulo3.diagramaGanttData || []);
+      setEditableGanttData(data.capitulo3?.diagramaGanttData || []);
       setSignatures({
         tutorAcademico: data.firmasGantt?.tutorAcademico || '',
         tutorInstitucional: data.firmasGantt?.tutorInstitucional || '',
-        pasante: data.firmasGantt?.pasante || `${data.portada.nombres} ${data.portada.apellidos}`
+        pasante: data.firmasGantt?.pasante || `${data.portada?.nombres || ''} ${data.portada?.apellidos || ''}`.trim() || 'PASANTE'
       });
 
       setResult(generationMode !== 'word'
@@ -111,7 +111,15 @@ export default function Home() {
 
   const toggleWeek = (objIdx: number, actIdx: number, tareaIdx: number, week: number) => {
     const newData = [...editableGanttData];
-    const tarea = newData[objIdx].actividades[actIdx].tareas[tareaIdx];
+    const item = newData[objIdx];
+    if (!item || !item.actividades || !item.actividades[actIdx]) return;
+    
+    const act = item.actividades[actIdx];
+    if (!act.tareas || !act.tareas[tareaIdx]) return;
+    
+    const tarea = act.tareas[tareaIdx];
+    if (!tarea.semanas) tarea.semanas = [];
+    
     if (tarea.semanas.includes(week)) {
       tarea.semanas = tarea.semanas.filter((w: number) => w !== week);
     } else {
@@ -519,10 +527,9 @@ export default function Home() {
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
-                          {editableGanttData.map((obj: any, objIdx: number) => (
-                            obj.actividades.map((act: any, actIdx: number) => (
-                              act.tareas.map((tarea: any, tareaIdx: number) => (
+                        <tbody className="bg-white div                          {(editableGanttData || []).map((obj: any, objIdx: number) => (
+                            (obj.actividades || []).map((act: any, actIdx: number) => (
+                              (act.tareas || []).map((tarea: any, tareaIdx: number) => (
                                 <tr key={`${objIdx}-${actIdx}-${tareaIdx}`} className="hover:bg-indigo-50/50 transition-colors">
                                   <td className="px-3 py-2 border-r border-gray-50">
                                      {actIdx === 0 && tareaIdx === 0 && (
@@ -534,7 +541,7 @@ export default function Home() {
                                      <div className="text-gray-500 pl-3 border-l border-indigo-200">— {tarea.descripcion}</div>
                                   </td>
                                   {Array.from({ length: 14 }, (_, i) => {
-                                    const isSelected = tarea.semanas.includes(i + 1);
+                                    const isSelected = (tarea.semanas || []).includes(i + 1);
                                     return (
                                       <td 
                                         key={i} 
@@ -549,6 +556,7 @@ export default function Home() {
                               ))
                             ))
                           ))}
+                        ))}
                         </tbody>
                       </table>
                     </div>
