@@ -6,8 +6,8 @@ export const translations = {
       version: "v3.0.0 Premium"
     },
     config: {
-      title: "Engine Config",
-      subtitle: "AI Persistence",
+      title: "Configuración",
+      subtitle: "Persistencia IA",
       modelLabel: "Modelo Gemini",
       apiKeyLabel: "Gemini API Key",
       apiKeyPlaceholder: "Introduce tu API Key...",
@@ -16,11 +16,15 @@ export const translations = {
       generationMode: "Modo de Generación",
       modeBoth: "Completo (Word + Gantt)",
       modeWord: "Solo Informe Word",
-      modeGantt: "Solo Diagrama de Gantt"
+      modeGantt: "Solo Diagrama de Gantt",
+      ganttThemeLabel: "Estética del Cronograma",
+      themeInstitutional: "Institucional (Azul)",
+      themeModern: "Moderno (Esmeralda)",
+      themeAcademic: "Académico (Rojo)"
     },
     upload: {
-      title: "Draft Upload",
-      subtitle: "Source (.docx)",
+      title: "Subir Borrador",
+      subtitle: "Origen (.docx)",
       dropzone: "Selecciona o arrastra tu archivo .docx",
       ruleLabel: "Normativa de Revisión",
       ruleDescription: "Selecciona la universidad o reglamento académico"
@@ -72,7 +76,11 @@ export const translations = {
       generationMode: "Generation Mode",
       modeBoth: "Complete (Word + Gantt)",
       modeWord: "Word Report Only",
-      modeGantt: "Gantt Diagram Only"
+      modeGantt: "Gantt Diagram Only",
+      ganttThemeLabel: "Schedule Aesthetics",
+      themeInstitutional: "Institutional (Blue)",
+      themeModern: "Modern (Emerald)",
+      themeAcademic: "Academic (Red)"
     },
     upload: {
       title: "Draft Upload",
