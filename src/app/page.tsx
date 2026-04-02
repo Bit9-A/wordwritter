@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { getRevisionRules, RevisionRule } from '@/lib/rules';
 import { Upload, FileText, CheckCircle, ArrowRight, Loader2, Settings, Key, Eye, EyeOff, ExternalLink, Palette, ChevronRight, Download, AlertCircle, MessageSquare } from 'lucide-react';
+import { processDocumentLocally } from '@/lib/processor';
+import { generateDocument } from '@/lib/docx-generator';
+import { generateGanttExcel } from '@/lib/excel-generator';
+import { Packer } from 'docx';
+import Script from 'next/script';
 
 export default function Home() {
   const [rules, setRules] = useState<RevisionRule[]>([]);
@@ -28,6 +33,7 @@ export default function Home() {
     tutorInstitucional: '',
     pasante: ''
   });
+  const [processingStep, setProcessingStep] = useState<string>('');
 
   useEffect(() => {
     setRules(getRevisionRules());
@@ -68,28 +74,20 @@ export default function Home() {
     setIsProcessing(true);
     setResult(null);
     setProcessedData(null);
+    setProcessingStep('Iniciando...');
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('ruleId', selectedRuleId);
-    formData.append('includeGantt', String(generationMode !== 'word'));
-    formData.append('generationMode', generationMode);
-    formData.append('model', selectedModel);
-    formData.append('apiKey', apiKey);
-    formData.append('userPrompt', userPrompt);
+    const options = {
+      file,
+      ruleId: selectedRuleId,
+      generationMode,
+      model: selectedModel,
+      apiKey: apiKey,
+      userPrompt: userPrompt,
+      onProgress: (step: string) => setProcessingStep(step)
+    };
 
     try {
-      const response = await fetch('/api/process', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Error al procesar el documento');
-      }
-
-      const data = await response.json();
+      const data = await processDocumentLocally(options);
       setProcessedData(data);
       
       // Inicializar datos editables
@@ -101,12 +99,13 @@ export default function Home() {
       });
 
       setResult(generationMode !== 'word'
-        ? "Documento procesado. Ahora puedes ajustar el Cronograma de 3 Niveles." 
+        ? "Documento procesado localmente. Ahora puedes ajustar el Cronograma." 
         : "Documento procesado exitosamente.");
     } catch (error: any) {
-      alert(error.message);
+      alert("Error: " + error.message);
     } finally {
       setIsProcessing(false);
+      setProcessingStep('');
     }
   };
 
@@ -121,7 +120,7 @@ export default function Home() {
     setEditableGanttData(newData);
   };
 
-  const downloadFile = async (endpoint: string, filename: string) => {
+  const downloadFile = async (type: 'word' | 'excel', filename: string) => {
     if (!processedData) return;
     
     // Preparar data final con ediciones
@@ -136,12 +135,17 @@ export default function Home() {
     };
 
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalData),
-      });
-      const blob = await response.blob();
+      let blob: Blob;
+      
+      if (type === 'word') {
+        const doc = await generateDocument(finalData);
+        const buffer = await Packer.toBlob(doc);
+        blob = buffer;
+      } else {
+        const buffer = await generateGanttExcel(finalData, ganttTheme);
+        blob = new Blob([buffer as any], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -151,7 +155,7 @@ export default function Home() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error: any) {
-      alert("Error al descargar el archivo: " + error.message);
+      alert("Error al generar el archivo: " + error.message);
     }
   };
 
@@ -210,8 +214,8 @@ export default function Home() {
                     className="block w-full pl-3 pr-10 py-3 text-base text-gray-900 border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm rounded-xl border appearance-none bg-white font-medium"
                   >
                     <optgroup label="Última Generación (Gemini 3)">
-                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
                       <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
                       <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
                     </optgroup>
                     <optgroup label="Generación Anterior / Otros">
@@ -367,24 +371,40 @@ export default function Home() {
                   Archivo Word (.docx)
                 </label>
                 <div className="mt-1 flex justify-center px-6 pt-10 pb-10 border-2 border-gray-200 border-dashed rounded-2xl hover:border-indigo-400 transition-all bg-gray-50/50">
-                  <div className="space-y-1 text-center">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="flex text-sm text-gray-600">
-                      <label
-                        htmlFor="file-upload"
-                        className="relative cursor-pointer bg-transparent rounded-md font-bold text-indigo-600 hover:text-indigo-500 focus-within:outline-none"
-                      >
-                        <span>Selecciona un documento</span>
-                        <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".docx" onChange={handleFileChange} />
-                      </label>
-                    </div>
-                    <p className="text-xs text-gray-500">Solo archivos .docx universitarios</p>
-                  </div>
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    {file ? (
+                      <div className="flex items-center space-x-2 text-sm text-indigo-600 font-medium bg-indigo-50 p-2 rounded-lg">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>{file.name}</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <Upload className="w-10 h-10 text-indigo-400 mb-2" />
+                        <span className="text-gray-600 font-medium">Subir Borrador Word</span>
+                        <span className="text-xs text-gray-400 mt-1">.docx soportado</span>
+                      </div>
+                    )}
+                  </label>
+                  <input
+                    id="file-upload"
+                    type="file"
+                    className="hidden"
+                    accept=".docx"
+                    onChange={handleFileChange}
+                  />
                 </div>
-                {file && (
-                  <div className="flex items-center space-x-2 text-sm text-indigo-600 font-medium bg-indigo-50 p-2 rounded-lg">
-                    <CheckCircle className="w-4 h-4" />
-                    <span>{file.name}</span>
+
+                {/* Advertencia de Archivo Grande */}
+                {file && file.size > 1024 * 1024 && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-800">Archivo Grande Detectado ({(file.size / (1024 * 1024)).toFixed(2)} MB)</p>
+                      <p className="text-xs text-amber-700 leading-relaxed">
+                        Los archivos extensos pueden fallar si la IA intenta generar demasiado texto. 
+                        Recomendamos usar el modelo <strong>Gemini 1.5 Pro</strong> para mayor estabilidad.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -413,19 +433,22 @@ export default function Home() {
 
             <button
               type="submit"
-              disabled={!file || isProcessing}
+              disabled={!file || isProcessing || !apiKey}
               className={`w-full flex items-center justify-center py-4 px-4 rounded-xl shadow-lg text-lg font-bold text-white transition-all transform active:scale-95 ${
-                !file || isProcessing ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-200'
+                !file || isProcessing || !apiKey ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-200'
               }`}
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" />
-                  Trabajando...
+                  <div className="flex flex-col items-start leading-tight">
+                    <span>Procesando Documento...</span>
+                    <span className="text-xs font-normal opacity-90">{processingStep}</span>
+                  </div>
                 </>
               ) : (
                 <>
-                  Iniciar Procesamiento
+                  Iniciar Procesamiento Profesional
                   <ArrowRight className="ml-2 h-6 w-6" />
                 </>
               )}
@@ -536,7 +559,7 @@ export default function Home() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {generationMode !== 'gantt' && (
                   <button
-                    onClick={() => downloadFile('/api/export/word', `revisado_${file?.name || 'documento'}`)}
+                    onClick={() => downloadFile('word', `revisado_${file?.name || 'documento'}`)}
                     className="flex items-center justify-center py-4 px-4 bg-white border-2 border-indigo-100 rounded-xl text-indigo-900 font-bold hover:bg-gray-50 transition-all shadow-sm"
                   >
                     <FileText className="w-5 h-5 mr-2" />
@@ -546,7 +569,7 @@ export default function Home() {
                 
                 {generationMode !== 'word' && (
                   <button
-                    onClick={() => downloadFile('/api/export/excel', `gantt_${file?.name.replace('.docx', '') || 'plan'}.xlsx`)}
+                    onClick={() => downloadFile('excel', `gantt_${file?.name.replace('.docx', '') || 'plan'}.xlsx`)}
                     className="flex items-center justify-center py-4 px-4 bg-indigo-600 border-2 border-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-700 transition-all shadow-md active:shadow-inner"
                   >
                     <FileText className="w-5 h-5 mr-2" />

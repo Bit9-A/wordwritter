@@ -88,6 +88,12 @@ export const documentSchema = z.object({
   bibliografia: z.array(z.string()).describe("Lista de referencias en formato APA"),
 
   anexosText: z.string().describe("Texto introductorio para la sección de anexos o listado de anexos referenciados en el capítulo 3."),
+  
+  firmasGantt: z.object({
+    tutorAcademico: z.string().describe("Nombre del Tutor Académico"),
+    tutorInstitucional: z.string().describe("Nombre del Tutor Institucional"),
+    pasante: z.string().describe("Nombre del Pasante"),
+  }).optional().describe("Nombres para las firmas del cronograma"),
 });
 
 export type DocumentData = z.infer<typeof documentSchema>;

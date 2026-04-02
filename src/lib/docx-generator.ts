@@ -140,7 +140,7 @@ function textToParas(text: string): Paragraph[] {
 }
 
 // ─── Función principal ────────────────────────────────────────────────────────
-export async function generateDocument(data: DocumentData): Promise<Buffer> {
+export async function generateDocument(data: DocumentData): Promise<Document> {
 
   const doc = new Document({
     features: {
@@ -603,5 +603,5 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
     ],
   });
 
-  return await Packer.toBuffer(doc);
+  return doc;
 }
