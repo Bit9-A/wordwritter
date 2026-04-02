@@ -10,9 +10,11 @@
   },
   "dependencies": {
     "@langchain/google-genai": "^2.1.26",
+    "@phosphor-icons/react": "^2.1.10",
     "clsx": "^2.1.1",
     "docx": "^9.6.1",
     "exceljs": "^4.4.0",
+    "framer-motion": "^12.38.0",
     "langchain": "^1.2.36",
     "lucide-react": "^0.577.0",
     "mammoth": "^1.12.0",

@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     const selectedModel = formData.get('model') as string || 'gemini-3-flash-preview';
     const userApiKey = formData.get('apiKey') as string;
     const userPrompt = formData.get('userPrompt') as string || '';
+    const language = formData.get('language') as string || 'es';
 
     if (!file || !ruleId) {
       return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 });
@@ -63,17 +64,22 @@ export async function POST(req: NextRequest) {
       - Evita repeticiones.
       - Si falta información (como misión, visión o coordenadas), GENERA información coherente con el tipo de empresa mencionado.
       
+      {languageInstruction}
       {userInstructions}
       {modeInstructions}
-
+ 
       Instrucciones adicionales de estilo:
       {rulePrompt}
-
+ 
       A continuación se presenta el contenido del documento borrador del estudiante:
       ---
       {documentText}
       ---
     `);
+
+    const languageInstruction = language === 'en' 
+      ? `CRITICAL: The entire output MUST be in ENGLISH. This includes but is not limited to: Preliminary pages, Introductions, Chapters, Glossary, Bibliography, and the Gantt Chart (Objectives, Activities, Tasks).`
+      : `CRÍTICO: Todo el resultado DEBE estar en ESPAÑOL. Esto incluye pero no se limita a: Páginas preliminares, Introducción, Capítulos, Glosario, Bibliografía y el Diagrama de Gantt (Objetivos, Actividades, Tareas).`;
 
     const userInstructions = userPrompt 
       ? `INSTRUCCIONES ESPECÍFICAS DEL USUARIO (Prioridad Alta): ${userPrompt}`
@@ -102,7 +108,8 @@ export async function POST(req: NextRequest) {
       rulePrompt: rule.prompt,
       documentText: text,
       modeInstructions: finalModeInstructions,
-      userInstructions: userInstructions
+      userInstructions: userInstructions,
+      languageInstruction: languageInstruction
     });
 
     // 3. Obtener respuesta estructurada de la IA (Capa 2)

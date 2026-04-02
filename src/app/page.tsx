@@ -1,8 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FileArrowUp, 
+  Gear, 
+  Key, 
+  Lightning, 
+  FileText, 
+  CheckCircle, 
+  ArrowRight, 
+  CircleNotch, 
+  Eye, 
+  EyeSlash, 
+  Palette, 
+  DownloadSimple, 
+  WarningCircle, 
+  ChatTeardropText,
+  CaretRight,
+  TerminalWindow,
+  Briefcase,
+  User,
+  ProjectorScreenChart,
+  HardDrives,
+  Translate
+} from '@phosphor-icons/react';
 import { getRevisionRules, RevisionRule } from '@/lib/rules';
-import { Upload, FileText, CheckCircle, ArrowRight, Loader2, Settings, Key, Eye, EyeOff, ExternalLink, Palette, ChevronRight, Download, AlertCircle, MessageSquare } from 'lucide-react';
+import { translations, Language } from '@/lib/i18n';
+
+// Spring physics for all animations
+const spring = { type: "spring", stiffness: 100, damping: 20 };
 
 export default function Home() {
   const [rules, setRules] = useState<RevisionRule[]>([]);
@@ -10,10 +37,9 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [lang, setLang] = useState<Language>('es');
   const [processedData, setProcessedData] = useState<any>(null);
   const [result, setResult] = useState<string | null>(null);
-  const [includeGantt, setIncludeGantt] = useState(true);
   const [generationMode, setGenerationMode] = useState<'both' | 'word' | 'gantt'>('both');
   const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
   const [ganttTheme, setGanttTheme] = useState('institutional');
@@ -21,13 +47,15 @@ export default function Home() {
   const [userPrompt, setUserPrompt] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   
-  // Estados para la edición interactiva
+  // States for Gantt Editor
   const [editableGanttData, setEditableGanttData] = useState<any[]>([]);
   const [signatures, setSignatures] = useState({
     tutorAcademico: '',
     tutorInstitucional: '',
     pasante: ''
   });
+  
+  const t = translations[lang];
 
   useEffect(() => {
     setRules(getRevisionRules());
@@ -35,16 +63,16 @@ export default function Home() {
       setSelectedRuleId(getRevisionRules()[0].id);
     }
     
-    // Cargar API Key de localStorage
     const savedKey = localStorage.getItem('gemini_api_key');
     if (savedKey) setApiKey(savedKey);
     setIsMounted(true);
 
-    // Inicializar anuncios de Google si existen en el DOM
     try {
-      ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+      if ((window as any).adsbygoogle) {
+        ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+      }
     } catch (e) {
-      console.error("AdSense error:", e);
+      console.warn("AdSense pending or blocked.");
     }
   }, []);
 
@@ -77,6 +105,7 @@ export default function Home() {
     formData.append('model', selectedModel);
     formData.append('apiKey', apiKey);
     formData.append('userPrompt', userPrompt);
+    formData.append('language', lang);
 
     try {
       const response = await fetch('/api/process', {
@@ -86,14 +115,13 @@ export default function Home() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Error al procesar el documento');
+        throw new Error(data.error || t.errors.processError);
       }
 
       const data = await response.json();
       setProcessedData(data);
       
-      // Inicializar datos editables
-      setEditableGanttData(data.capitulo3.diagramaGanttData || []);
+      setEditableGanttData(data.capitulo3?.diagramaGanttData || []);
       setSignatures({
         tutorAcademico: data.firmasGantt?.tutorAcademico || '',
         tutorInstitucional: data.firmasGantt?.tutorInstitucional || '',
@@ -101,8 +129,8 @@ export default function Home() {
       });
 
       setResult(generationMode !== 'word'
-        ? "Documento procesado. Ahora puedes ajustar el Cronograma de 3 Niveles." 
-        : "Documento procesado exitosamente.");
+        ? t.results.ready 
+        : t.results.title);
     } catch (error: any) {
       alert(error.message);
     } finally {
@@ -124,7 +152,6 @@ export default function Home() {
   const downloadFile = async (endpoint: string, filename: string) => {
     if (!processedData) return;
     
-    // Preparar data final con ediciones
     const finalData = {
       ...processedData,
       capitulo3: {
@@ -151,364 +178,429 @@ export default function Home() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error: any) {
-      alert("Error al descargar el archivo: " + error.message);
+      alert("Error en la descarga: " + error.message);
     }
   };
 
   const selectedRule = rules.find(r => r.id === selectedRuleId);
 
+  if (!isMounted) return null;
+
   return (
-    <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
-            WordWritter
-          </h1>
-          <p className="text-lg text-gray-600">
-            Revisión académica y generación de diagramas institucionales
-          </p>
-        </div>
+    <main className="relative min-h-dvh flex flex-col items-center py-12 px-4 sm:px-8 selection:bg-accent/30 selection:text-accent">
+      
+      {/* Background Orbs */}
+      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/10 blur-[120px] rounded-full pointer-events-none z-0" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-emerald-700/10 blur-[100px] rounded-full pointer-events-none z-0" />
 
-        <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
-          <form onSubmit={handleSubmit} className="p-8 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Columna Izquierda: Configuración */}
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                    <Settings className="w-4 h-4 mr-2 text-indigo-500" />
-                    Regla de Revisión
-                  </label>
-                  <select
-                    value={selectedRuleId}
-                    onChange={(e) => setSelectedRuleId(e.target.value)}
-                    className="block w-full pl-3 pr-10 py-3 text-base text-gray-900 border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm rounded-xl border appearance-none bg-white font-medium"
-                  >
-                    {rules.map((rule) => (
-                      <option key={rule.id} value={rule.id} className="text-gray-900">
-                        {rule.name}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedRule && (
-                    <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                      <p className="text-sm text-indigo-800 italic leading-relaxed">
-                        {selectedRule.description}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-4 pt-4 border-t border-gray-100">
-                  <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                    <Loader2 className="w-4 h-4 mr-2 text-indigo-500" />
-                    Inteligencia Artificial (Modelo)
-                  </label>
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="block w-full pl-3 pr-10 py-3 text-base text-gray-900 border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm rounded-xl border appearance-none bg-white font-medium"
-                  >
-                    <optgroup label="Última Generación (Gemini 3)">
-                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
-                      <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
-                      <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
-                    </optgroup>
-                    <optgroup label="Generación Anterior / Otros">
-                      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-                      <option value="gemini-1.5-pro">gemini-1.5-pro</option>
-                      <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-                    </optgroup>
-                  </select>
-                  <p className="text-[10px] text-gray-400 italic leading-tight">
-                    * Pro es más lento pero más inteligente. Flash es optimizado para velocidad.
-                  </p>
-                </div>
-
-                <div className="space-y-4 pt-4 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                      <Key className="w-4 h-4 mr-2 text-yellow-500" />
-                      Google Gemini API Key <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <a 
-                      href="https://aistudio.google.com/app/apikey" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center bg-indigo-50 px-2 py-1 rounded-md"
-                    >
-                      <ExternalLink size={10} className="mr-1" />
-                      OBTENER KEY
-                    </a>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showApiKey ? "text" : "password"}
-                      value={apiKey}
-                      onChange={(e) => handleApiKeyChange(e.target.value)}
-                      placeholder="AIzaSy..."
-                      className="w-full pl-4 pr-12 py-3 text-sm text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-300"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-indigo-600 transition-colors"
-                    >
-                      {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-gray-400 italic">
-                    * Obligatorio para procesar el documento. Se guarda localmente.
-                  </p>
-                </div>
-
-                <div className="space-y-3 pt-4 border-t border-gray-100">
-                  <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                    <MessageSquare className="w-4 h-4 mr-2 text-blue-500" />
-                    Instrucciones Específicas
-                  </label>
-                  <textarea
-                    value={userPrompt}
-                    onChange={(e) => setUserPrompt(e.target.value.slice(0, 1000))}
-                    placeholder="Ej: Mantén un tono formal, enfatiza la metodología técnica, etc."
-                    className="w-full p-4 text-sm text-gray-900 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-25 resize-none"
-                  />
-                  <div className="flex justify-end">
-                    <span className="text-[10px] text-gray-400 font-medium">
-                      {userPrompt.length} / 1000 caracteres
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-4 border-t border-gray-100">
-                  <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                    <FileText className="w-4 h-4 mr-2 text-indigo-500" />
-                    Modo de Procesamiento
-                  </label>
-                  
-                  <div className="grid grid-cols-1 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setGenerationMode('both')}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${generationMode === 'both' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}
-                    >
-                      <div className="flex items-center">
-                        <CheckCircle size={18} className="mr-2" />
-                        <span className="text-sm font-bold">Word + Gantt</span>
-                      </div>
-                      {generationMode === 'both' && <div className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full uppercase font-black">Recomendado</div>}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setGenerationMode('word')}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${generationMode === 'word' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}
-                    >
-                      <div className="flex items-center">
-                        <FileText size={18} className="mr-2" />
-                        <span className="text-sm font-bold">Solo Word</span>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setGenerationMode('gantt')}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${generationMode === 'gantt' ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}
-                    >
-                      <div className="flex items-center">
-                        <Palette size={18} className="mr-2" />
-                        <span className="text-sm font-bold">Solo Gantt</span>
-                      </div>
-                    </button>
-                  </div>
-
-                  {generationMode !== 'word' && (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-gray-50">
-                      <label className="flex items-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                        <Palette className="w-3 h-3 mr-1 text-indigo-500" />
-                        Estilo Visual del Diagrama
-                      </label>
-                      <select
-                        value={ganttTheme}
-                        onChange={(e) => setGanttTheme(e.target.value)}
-                        className="block w-full pl-3 pr-10 py-2 text-xs text-gray-900 border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg border appearance-none bg-white font-semibold"
-                      >
-                        <option value="institutional">Institucional (Clásico)</option>
-                        <option value="corporate">Corporativo (Moderno)</option>
-                        <option value="academic">Académico (Técnico)</option>
-                        <option value="modern">Moderno (Premium)</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bloque de Anuncio (Google AdSense) */}
-                <div className="pt-6 border-t border-gray-100 flex justify-center overflow-hidden">
-                  <div className="w-full max-w-xs bg-gray-50 rounded-xl overflow-hidden min-h-25 border border-gray-100 p-2">
-                    {/* App */}
-                    {isMounted && (
-                      <ins className="adsbygoogle"
-                           style={{ display: 'block' }}
-                           data-ad-client="ca-pub-6219970220596393"
-                           data-ad-slot="8730014249"
-                           data-ad-format="auto"
-                           data-full-width-responsive="true"></ins>
-                    )}
-                    <p className="text-[8px] text-gray-300 text-center mt-1 uppercase font-bold tracking-widest">Publicidad</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Columna Derecha: Archivo */}
-              <div className="space-y-4">
-                <label className="flex items-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                  <FileText className="w-4 h-4 mr-2 text-indigo-500" />
-                  Archivo Word (.docx)
-                </label>
-                <div className="mt-1 flex justify-center px-6 pt-10 pb-10 border-2 border-gray-200 border-dashed rounded-2xl hover:border-indigo-400 transition-all bg-gray-50/50">
-                  <div className="space-y-1 text-center">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="flex text-sm text-gray-600">
-                      <label
-                        htmlFor="file-upload"
-                        className="relative cursor-pointer bg-transparent rounded-md font-bold text-indigo-600 hover:text-indigo-500 focus-within:outline-none"
-                      >
-                        <span>Selecciona un documento</span>
-                        <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".docx" onChange={handleFileChange} />
-                      </label>
-                    </div>
-                    <p className="text-xs text-gray-500">Solo archivos .docx universitarios</p>
-                  </div>
-                </div>
-                {file && (
-                  <div className="flex items-center space-x-2 text-sm text-indigo-600 font-medium bg-indigo-50 p-2 rounded-lg">
-                    <CheckCircle className="w-4 h-4" />
-                    <span>{file.name}</span>
-                  </div>
-                )}
-              </div>
+      <div className="z-10 w-full max-w-6xl">
+        <motion.header 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={spring}
+          className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-16"
+        >
+          <div>
+            <h1 className="text-5xl sm:text-7xl font-black tracking-tighter text-white uppercase italic">
+              Word<span className="text-secondary opacity-50 block sm:inline">Writter</span>
+            </h1>
+            <p className="mt-2 text-zinc-400 font-medium max-w-md uppercase tracking-widest text-[10px]">
+              Advanced Academic Engine // Technical Schedule Synthesizer
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex items-center gap-2 px-4 py-2 glass rounded-full border-zinc-800">
+              <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+              <span className="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Active</span>
             </div>
 
-            {isProcessing && (
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 space-y-4 animate-pulse">
-                <div className="flex items-center justify-between text-sm font-bold text-indigo-900">
-                  <span className="flex items-center">
-                    <Loader2 className="animate-spin w-4 h-4 mr-2" />
-                    ANALIZANDO DOCUMENTO...
-                  </span>
-                  <span>ESTO PUEDE TARDAR UN MOMENTO...</span>
-                </div>
-                <div className="w-full bg-indigo-200 rounded-full h-2.5 overflow-hidden">
-                  <div 
-                    className="bg-indigo-600 h-full rounded-full animate-progress-indeterminate"
-                  ></div>
-                </div>
-                <p className="text-xs text-indigo-600 text-center font-medium">
-                  Estamos extrayendo objetivos, tareas y estructurando tu cronograma de 14 semanas. 
-                  Por favor, mantén esta ventana abierta.
-                </p>
-              </div>
-            )}
+            {/* Language Switcher */}
+            <div className="flex items-center glass rounded-full p-1 border-zinc-800">
+               <button 
+                onClick={() => setLang('es')}
+                className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full transition-all ${lang === 'es' ? 'bg-accent text-zinc-950' : 'text-zinc-500 hover:text-white'}`}
+               >
+                 ES
+               </button>
+               <button 
+                onClick={() => setLang('en')}
+                className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full transition-all ${lang === 'en' ? 'bg-accent text-zinc-950' : 'text-zinc-500 hover:text-white'}`}
+               >
+                 EN
+               </button>
+            </div>
+          </div>
+        </motion.header>
 
-            <button
-              type="submit"
-              disabled={!file || isProcessing}
-              className={`w-full flex items-center justify-center py-4 px-4 rounded-xl shadow-lg text-lg font-bold text-white transition-all transform active:scale-95 ${
-                !file || isProcessing ? 'bg-gray-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-200'
-              }`}
+        <AnimatePresence mode="wait">
+          {!processedData && !isProcessing ? (
+            <motion.div
+              key="setup"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={spring}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:grid-rows-2"
             >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="animate-spin -ml-1 mr-3 h-6 w-6 text-white" />
-                  Trabajando...
-                </>
-              ) : (
-                <>
-                  Iniciar Procesamiento
-                  <ArrowRight className="ml-2 h-6 w-6" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Resultado y Editor de Gantt */}
-          {processedData && (
-            <div className="border-t border-gray-100 p-8 bg-indigo-50/50 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="bg-green-100 p-2 rounded-full mr-3">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
+              {/* Card 1: Configuration (Bento 4 cols) */}
+              <motion.div 
+                whileHover={{ y: -4 }}
+                className="lg:col-span-4 glass rounded-2xl p-6 border-zinc-800 flex flex-col gap-6"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-zinc-800 rounded-lg">
+                    <Gear size={20} className="text-accent" />
                   </div>
-                  <h3 className="text-xl font-black text-indigo-950">¡Análisis Completado!</h3>
+                  <h3 className="font-bold text-sm tracking-tight text-white uppercase">{t.config.title}</h3>
                 </div>
-              </div>
 
-              {generationMode !== 'word' && editableGanttData.length > 0 && (
-                <div className="space-y-6">
-                  {/* Editor de Firmas */}
-                  <div className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4">
-                    <h4 className="text-sm font-bold text-indigo-900 uppercase">Validación Institucional</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase">Tutor Académico</label>
-                        <input 
-                          type="text" 
-                          value={signatures.tutorAcademico} 
-                          onChange={(e) => setSignatures({...signatures, tutorAcademico: e.target.value})}
-                          placeholder="Nombre y Apellidos"
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase">Tutor Institucional</label>
-                        <input 
-                          type="text" 
-                          value={signatures.tutorInstitucional} 
-                          onChange={(e) => setSignatures({...signatures, tutorInstitucional: e.target.value})}
-                          placeholder="Nombre y Apellidos"
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase">Pasante</label>
-                        <input 
-                          type="text" 
-                          value={signatures.pasante} 
-                          onChange={(e) => setSignatures({...signatures, pasante: e.target.value})}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-                        />
-                      </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{t.upload.ruleLabel}</label>
+                    <select
+                      value={selectedRuleId}
+                      onChange={(e) => setSelectedRuleId(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-xs font-medium text-white focus:ring-1 focus:ring-accent outline-none appearance-none cursor-pointer"
+                    >
+                      {rules.map((rule) => (
+                        <option key={rule.id} value={rule.id}>{rule.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{t.config.modelLabel}</label>
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-xs font-medium text-white focus:ring-1 focus:ring-accent outline-none appearance-none cursor-pointer"
+                    >
+                      <optgroup label="Premier Models (3.x)" className="bg-zinc-950 text-accent font-bold">
+                        <option value="gemini-3-flash-preview">Gemini 3 Flash (Fast & Native)</option>
+                        <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Technical Heavy)</option>
+                        <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite</option>
+                      </optgroup>
+                      <optgroup label="Balanced Models (2.5)" className="bg-zinc-950 text-zinc-400">
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
+
+                {selectedRule && (
+                  <div className="mt-auto p-4 bg-accent/5 rounded-xl border border-accent/10">
+                    <p className="text-[11px] text-zinc-400 italic leading-relaxed">
+                      "{selectedRule.description}"
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Card 2: Security & Prompt (Bento 4 cols) */}
+              <motion.div 
+                whileHover={{ y: -4 }}
+                className="lg:col-span-4 glass rounded-2xl p-6 border-zinc-800 flex flex-col gap-6"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-zinc-800 rounded-lg">
+                    <Key size={20} className="text-accent" />
+                  </div>
+                  <h3 className="font-bold text-sm tracking-tight text-white uppercase">{t.config.subtitle}</h3>
+                </div>
+
+                <div className="space-y-4 flex-1 flex flex-col">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{t.config.apiKeyLabel}</label>
+                      <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-[9px] font-black text-accent hover:opacity-70 transition-opacity">GET KEY</a>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showApiKey ? "text" : "password"}
+                        value={apiKey}
+                        onChange={(e) => handleApiKeyChange(e.target.value)}
+                        placeholder="••••••••••••••••"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-4 pr-10 py-3 text-xs font-mono text-white focus:ring-1 focus:ring-accent outline-none"
+                      />
+                      <button 
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+                      >
+                        {showApiKey ? <EyeSlash size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
                   </div>
 
-                  {/* Editor Jerárquico de Gantt */}
-                  <div className="overflow-hidden bg-white rounded-2xl border border-indigo-100 shadow-sm">
+                  <div className="space-y-2 flex-1 flex flex-col">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{t.config.userPromptLabel}</label>
+                    <textarea
+                      value={userPrompt}
+                      onChange={(e) => setUserPrompt(e.target.value.slice(0, 1000))}
+                      placeholder={t.config.userPromptPlaceholder}
+                      className="flex-1 w-full bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-xs font-medium text-white focus:ring-1 focus:ring-accent outline-none resize-none transition-all placeholder:text-zinc-700"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Card 3: Upload Central (Bento 4 cols, 2 rows height) */}
+              <motion.div 
+                whileHover={{ y: -4 }}
+                className="lg:col-span-4 lg:row-span-2 glass-accent rounded-3xl p-8 border-emerald-500/20 flex flex-col items-center justify-center text-center gap-8 group"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-accent/20 blur-3xl rounded-full scale-150 animate-pulse" />
+                  <div className="relative w-24 h-24 bg-zinc-950 rounded-full border border-emerald-500/30 flex items-center justify-center">
+                    <FileArrowUp size={48} className="text-accent group-hover:-translate-y-1 transition-transform" weight="duotone" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">{t.results.ready}</h2>
+                  <p className="text-xs text-zinc-500 font-medium px-4">{t.upload.dropzone}</p>
+                </div>
+
+                <div className="w-full space-y-4">
+                  <label className="block w-full cursor-pointer">
+                    <div className="w-full py-4 glass border-zinc-800 rounded-2xl text-xs font-black uppercase tracking-widest text-zinc-300 hover:bg-zinc-800 transition-colors">
+                      {file ? file.name : t.upload.title}
+                    </div>
+                    <input type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
+                  </label>
+
+                  <motion.button
+                    disabled={!file || !apiKey}
+                    onClick={handleSubmit}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all ${
+                      !file || !apiKey ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50' : 'bg-accent text-zinc-950 shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)] hover:scale-[1.02]'
+                    }`}
+                  >
+                    {isProcessing ? t.actions.processing : t.actions.process}
+                    <ArrowRight size={20} weight="bold" />
+                  </motion.button>
+                </div>
+
+                <div className="flex gap-4 mt-4">
+                   <div className="flex items-center gap-1">
+                      <HardDrives size={12} className="text-zinc-600" />
+                      <span className="text-[9px] font-black text-zinc-600 uppercase">DOCX STABLE</span>
+                   </div>
+                   <div className="flex items-center gap-1">
+                      <Lightning size={12} className="text-zinc-600" />
+                      <span className="text-[9px] font-black text-zinc-600 uppercase">GPU TURBO</span>
+                   </div>
+                </div>
+              </motion.div>
+
+              {/* Card 4: Mode Selection (Bento 8 cols) */}
+              <motion.div 
+                whileHover={{ y: -4 }}
+                className="lg:col-span-8 glass rounded-2xl p-6 border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-8"
+              >
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{t.config.generationMode}</label>
+                  <p className="text-xs text-zinc-400 font-medium">{t.upload.ruleDescription}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'both', label: t.config.modeBoth, icon: CheckCircle },
+                    { id: 'word', label: t.config.modeWord, icon: FileText },
+                    { id: 'gantt', label: t.config.modeGantt, icon: ProjectorScreenChart },
+                  ].map((mode) => (
+                    <button
+                      key={mode.id}
+                      onClick={() => setGenerationMode(mode.id as any)}
+                      className={`px-5 py-3 rounded-xl flex items-center gap-2 text-xs font-bold transition-all border ${
+                        generationMode === mode.id 
+                        ? 'bg-accent border-accent text-zinc-950' 
+                        : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-600'
+                      }`}
+                    >
+                      <mode.icon size={16} />
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          ) : isProcessing ? (
+            <motion.div
+              key="processing"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -40 }}
+              className="flex flex-col items-center justify-center py-24 gap-12"
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-accent/20 blur-[100px] rounded-full scale-150 animate-pulse" />
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  className="relative w-48 h-48 rounded-full border-4 border-zinc-800 flex items-center justify-center"
+                >
+                  <div className="absolute top-0 w-4 h-4 bg-accent rounded-full -translate-y-2 shadow-[0_0_15px_rgba(16,185,129,1)]" />
+                  <CircleNotch size={80} className="text-zinc-600 animate-spin" />
+                </motion.div>
+              </div>
+
+              <div className="text-center space-y-4">
+                <h2 className="text-4xl font-black text-white tracking-tighter uppercase italic">{t.loading.title}</h2>
+                <p className="text-zinc-500 font-medium max-w-sm mx-auto text-xs uppercase tracking-widest">
+                  {t.loading.subtitle}
+                </p>
+              </div>
+
+              <div className="w-full max-w-md bg-zinc-900/50 border border-zinc-800 rounded-2xl p-1 overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 15, ease: "easeInOut" }}
+                  className="h-2 bg-accent shadow-[0_0_10px_rgba(16,185,129,0.5)] rounded-full"
+                />
+              </div>
+
+              <div className="flex gap-8 text-[10px] font-black text-zinc-700 uppercase tracking-[0.2em] animate-pulse">
+                <span>Core.v3</span>
+                <span>Analytic_Active</span>
+                <span>Hierarchical_Map</span>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="results"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={spring}
+              className="space-y-8"
+            >
+              {/* Success Header */}
+              <div className="glass rounded-3xl p-8 border-emerald-500/20 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-4 bg-emerald-500/10 rounded-2xl">
+                    <CheckCircle size={32} className="text-accent" weight="duotone" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-white tracking-tight uppercase">{processedData.portada?.nombres ? `${processedData.portada.nombres} ${processedData.portada.apellidos}` : t.results.title}</h2>
+                    <p className="text-zinc-500 text-xs font-medium uppercase tracking-widest mt-1">{t.results.subtitle}</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap justify-center gap-3">
+                  {generationMode !== 'gantt' && (
+                    <motion.button
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => downloadFile('/api/export/word', `final_${file?.name}`)}
+                      className="px-6 py-4 bg-white text-zinc-950 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2"
+                    >
+                      <FileText size={18} />
+                      {t.actions.exportWord}
+                    </motion.button>
+                  )}
+                  {generationMode !== 'word' && (
+                    <motion.button
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => downloadFile('/api/export/excel', `gantt_${file?.name.replace('.docx', '')}.xlsx`)}
+                      className="px-6 py-4 bg-accent text-zinc-950 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2"
+                    >
+                      <ProjectorScreenChart size={18} />
+                      {t.actions.exportExcel}
+                    </motion.button>
+                  )}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    onClick={() => setProcessedData(null)}
+                    className="p-4 glass rounded-2xl text-zinc-400 border-zinc-800 hover:text-white"
+                  >
+                    <ArrowRight size={18} className="rotate-180" />
+                  </motion.button>
+                </div>
+              </div>
+              {/* Gantt Interactive Editor */}
+              {generationMode !== 'word' && editableGanttData.length > 0 && (
+                <div className="space-y-6">
+                  {/* Firmas / Personal Details Card */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                      { key: 'tutorAcademico', label: t.results.nodeIdentity === 'Identity' ? 'Academic Tutor' : 'Tutor Académico', icon: User },
+                      { key: 'tutorInstitucional', label: t.results.nodeIdentity === 'Identity' ? 'Institutional Tutor' : 'Tutor Institucional', icon: Briefcase },
+                      { key: 'pasante', label: t.results.nodeIdentity === 'Identity' ? 'Intern' : 'Pasante', icon: Lightning }
+                    ].map((sig) => (
+                      <div key={sig.key} className="glass rounded-2xl p-6 border-zinc-800 space-y-3">
+                        <div className="flex items-center gap-2">
+                           <sig.icon size={14} className="text-accent" />
+                           <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{sig.label}</label>
+                        </div>
+                        <input 
+                          type="text" 
+                          value={(signatures as any)[sig.key]} 
+                          onChange={(e) => setSignatures({...signatures, [sig.key]: e.target.value})}
+                          placeholder={t.results.nodeIdentity === 'Identity' ? 'Legal Name' : 'Nombre Completo'}
+                          className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-xs font-bold text-white focus:ring-1 focus:ring-accent outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* The Technical Grid Component */}
+                  <div className="glass rounded-3xl border-zinc-800 overflow-hidden">
+                    <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <TerminalWindow size={20} className="text-zinc-500" />
+                        <h3 className="text-xs font-black text-white uppercase tracking-widest">{t.results.subtitle}</h3>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-red-600 rounded-sm" />
+                          <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Active Slot</span>
+                        </div>
+                        <select
+                          value={ganttTheme}
+                          onChange={(e) => setGanttTheme(e.target.value)}
+                          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-[9px] font-black text-zinc-400 uppercase tracking-widest focus:ring-1 focus:ring-accent outline-none"
+                        >
+                          <option value="institutional">System Minimal</option>
+                          <option value="corporate">Corporate Bold</option>
+                          <option value="academic">Academic High</option>
+                          <option value="modern">Modern Liquid</option>
+                        </select>
+                      </div>
+                    </div>
+                    
                     <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200 text-[10px]">
-                        <thead className="bg-indigo-900 text-white">
-                          <tr>
-                            <th className="px-3 py-3 text-left font-bold uppercase w-48">Objetivo / Actividad / Tareas</th>
-                            {Array.from({ length: 14 }, (_, i) => (
-                              <th key={i} className="px-1 py-3 text-center border-l border-indigo-800 w-8">
-                                S{i + 1}
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-zinc-900/50">
+                            <th className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] min-w-75">{t.results.nodeIdentity}</th>
+                            {t.results.weeks.split(' ').map((week, i) => (
+                              <th key={i} className="p-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest text-center border-l border-zinc-800 w-10">
+                                {week}
                               </th>
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
+                        <tbody className="divide-y divide-zinc-800">
                           {editableGanttData.map((obj: any, objIdx: number) => (
                             obj.actividades.map((act: any, actIdx: number) => (
                               act.tareas.map((tarea: any, tareaIdx: number) => (
-                                <tr key={`${objIdx}-${actIdx}-${tareaIdx}`} className="hover:bg-indigo-50/50 transition-colors">
-                                  <td className="px-3 py-2 border-r border-gray-50">
+                                <tr key={`${objIdx}-${actIdx}-${tareaIdx}`} className="group hover:bg-zinc-800/20 transition-colors">
+                                  <td className="p-4 space-y-2">
                                      {actIdx === 0 && tareaIdx === 0 && (
-                                       <div className="font-bold text-indigo-900 mb-1 border-b border-indigo-50 pb-1">{obj.objetivo}</div>
+                                       <div className="flex items-center gap-2 text-[10px] font-black text-accent uppercase tracking-widest mb-1">
+                                          <CaretRight size={10} weight="bold" />
+                                          {obj.objetivo}
+                                       </div>
                                      )}
                                      {tareaIdx === 0 && (
-                                       <div className="font-semibold text-gray-700 mb-1 pl-1 italic">{act.descripcion}</div>
+                                       <div className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 pl-4 opacity-70">{act.descripcion}</div>
                                      )}
-                                     <div className="text-gray-500 pl-3 border-l border-indigo-200">— {tarea.descripcion}</div>
+                                     <div className="text-[11px] font-medium text-zinc-300 pl-8 flex items-center gap-2">
+                                        <div className="w-1 h-3 bg-zinc-700 rounded-full" />
+                                        {tarea.descripcion}
+                                     </div>
                                   </td>
                                   {Array.from({ length: 14 }, (_, i) => {
                                     const isSelected = tarea.semanas.includes(i + 1);
@@ -516,9 +608,14 @@ export default function Home() {
                                       <td 
                                         key={i} 
                                         onClick={() => toggleWeek(objIdx, actIdx, tareaIdx, i + 1)}
-                                        className={`cursor-pointer border-l border-gray-50 text-center transition-all ${isSelected ? 'bg-red-600 text-white' : 'hover:bg-red-50'}`}
+                                        className={`cursor-pointer border-l border-zinc-800 transition-all relative ${isSelected ? 'bg-red-600/20' : 'hover:bg-accent/5'}`}
                                       >
-                                        {isSelected ? '●' : ''}
+                                        {isSelected && (
+                                          <motion.div 
+                                            layoutId={`blob-${objIdx}-${actIdx}-${tareaIdx}-${i}`}
+                                            className="absolute inset-2 bg-red-600 rounded-sm shadow-[0_0_10px_rgba(220,38,38,0.5)]" 
+                                          />
+                                        )}
                                       </td>
                                     );
                                   })}
@@ -532,37 +629,43 @@ export default function Home() {
                   </div>
                 </div>
               )}
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {generationMode !== 'gantt' && (
-                  <button
-                    onClick={() => downloadFile('/api/export/word', `revisado_${file?.name || 'documento'}`)}
-                    className="flex items-center justify-center py-4 px-4 bg-white border-2 border-indigo-100 rounded-xl text-indigo-900 font-bold hover:bg-gray-50 transition-all shadow-sm"
-                  >
-                    <FileText className="w-5 h-5 mr-2" />
-                    Descargar Word FINAL
-                  </button>
-                )}
-                
-                {generationMode !== 'word' && (
-                  <button
-                    onClick={() => downloadFile('/api/export/excel', `gantt_${file?.name.replace('.docx', '') || 'plan'}.xlsx`)}
-                    className="flex items-center justify-center py-4 px-4 bg-indigo-600 border-2 border-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-700 transition-all shadow-md active:shadow-inner"
-                  >
-                    <FileText className="w-5 h-5 mr-2" />
-                    Descargar Excel GANTT
-                  </button>
-                )}
-              </div>
-
-              {result && (
-                <p className="text-center text-sm text-indigo-600 italic font-medium">
-                  {result}
-                </p>
-              )}
-            </div>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
+
+        {/* Footer / Info */}
+        <motion.footer 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-24 pt-12 border-t border-zinc-900 flex flex-col md:flex-row justify-between items-center gap-8 text-zinc-600"
+        >
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black uppercase tracking-[0.3em]">Core Version</span>
+              <span className="text-[10px] font-medium">3.4.1-alpha (Premium)</span>
+            </div>
+            <div className="flex flex-col border-l border-zinc-800 pl-6">
+               <span className="text-[8px] font-black uppercase tracking-[0.3em]">Institutional</span>
+               <span className="text-[10px] font-medium">Standard Validated</span>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+             <div className="w-full max-w-xs overflow-hidden opacity-30 grayscale hover:grayscale-0 transition-all">
+                {/* AdSense Space */}
+                <ins className="adsbygoogle"
+                     style={{ display: 'block' }}
+                     data-ad-client="ca-pub-6219970220596393"
+                     data-ad-slot="8730014249"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+             </div>
+          </div>
+
+          <p className="text-[8px] font-black uppercase tracking-[0.4em] opacity-20">
+            {t.header.title} // {t.header.version} // {lang === 'es' ? 'PROTOCOLO DE DISEÑO ALTO' : 'HIGH END DESIGN PROTOCOL'}
+          </p>
+        </motion.footer>
       </div>
     </main>
   );
