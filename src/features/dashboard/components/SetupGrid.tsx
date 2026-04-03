@@ -10,7 +10,8 @@ import {
 } from '@phosphor-icons/react';
 import type { RevisionRule } from '@/lib/rules';
 import type { TranslationDict } from '@/lib/i18n';
-import type { GenerationMode, GanttTheme } from '@/types/dashboard';
+import type { GenerationMode, GanttTheme, TargetChapter } from '@/types/dashboard';
+import { AdBanner } from './AdBanner';
 
 interface SetupGridProps {
   t: TranslationDict;
@@ -23,6 +24,7 @@ interface SetupGridProps {
   file: File | null;
   generationMode: GenerationMode;
   ganttTheme: GanttTheme;
+  targetChapter: TargetChapter;
   isProcessing: boolean;
   onRuleChange: (id: string) => void;
   onModelChange: (model: string) => void;
@@ -33,6 +35,7 @@ interface SetupGridProps {
   onSubmit: (e: React.FormEvent) => void;
   onModeChange: (mode: GenerationMode) => void;
   onThemeChange: (theme: GanttTheme) => void;
+  onTargetChapterChange: (chapter: TargetChapter) => void;
 }
 
 const GENERATION_MODES = [
@@ -65,9 +68,9 @@ const spring = { type: 'spring' as const, stiffness: 100, damping: 20 };
 
 export function SetupGrid({
   t, rules, selectedRuleId, selectedModel, apiKey, showApiKey,
-  userPrompt, file, generationMode, ganttTheme, isProcessing,
+  userPrompt, file, generationMode, ganttTheme, targetChapter, isProcessing,
   onRuleChange, onModelChange, onApiKeyChange, onToggleShowApiKey,
-  onUserPromptChange, onFileChange, onSubmit, onModeChange, onThemeChange,
+  onUserPromptChange, onFileChange, onSubmit, onModeChange, onThemeChange, onTargetChapterChange,
 }: SetupGridProps) {
   const selectedRule = rules.find((r) => r.id === selectedRuleId);
 
@@ -110,6 +113,19 @@ export function SetupGrid({
                   ))}
                 </optgroup>
               ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className={labelClass}>Sección a Enfocar</label>
+            <select value={targetChapter} onChange={(e) => onTargetChapterChange(e.target.value as TargetChapter)} className={selectClass}>
+              <option value="all">Todo el Documento</option>
+              <option value="preliminares">Páginas Preliminares e Introducción</option>
+              <option value="cap1">Capítulo I</option>
+              <option value="cap2">Capítulo II</option>
+              <option value="cap3">Capítulo III</option>
+              <option value="cap4">Capítulo IV</option>
+              <option value="conclusiones">Conclusiones y Recomendaciones</option>
             </select>
           </div>
         </div>
@@ -264,6 +280,14 @@ export function SetupGrid({
             ))}
           </div>
         </div>
+      </motion.div>
+
+      {/* AdSense Unit */}
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="lg:col-span-12 glass rounded-2xl p-4 border-zinc-800 flex items-center justify-center min-h-25"
+      >
+        <AdBanner />
       </motion.div>
     </motion.div>
   );

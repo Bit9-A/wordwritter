@@ -3,7 +3,15 @@ import { getRuleById } from '@/lib/rules';
 import * as mammoth from 'mammoth';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { PromptTemplate } from '@langchain/core/prompts';
-import { documentSchema } from '@/lib/schema';
+import { 
+  documentSchema, 
+  preliminaresSchema, 
+  capitulo1Schema, 
+  capitulo2Schema, 
+  capitulo3Schema, 
+  capitulo4Schema, 
+  extrasSchema 
+} from '@/lib/schema';
 import { validateDocument } from '@/lib/validator';
 import { generateDocument } from '@/lib/docx-generator';
 
@@ -20,6 +28,8 @@ export async function POST(req: NextRequest) {
     const userApiKey = formData.get('apiKey') as string;
     const userPrompt = formData.get('userPrompt') as string || '';
     const language = formData.get('language') as string || 'es';
+    const targetChapter = formData.get('targetChapter') as string || 'all';
+    const isIsolated = targetChapter !== 'all';
 
     if (!file || !ruleId) {
       return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 });
@@ -39,43 +49,49 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
     const { value: text } = await mammoth.extractRawText({ buffer });
 
-    // 2. Configurar IA (Capa 3 y estructurado Capa 2)
+    // 2. Configurar IA con esquema dinámico (True Isolation)
     const model = new ChatGoogleGenerativeAI({
       apiKey: userApiKey,
       model: selectedModel, 
     });
 
-    const structuredModel = model.withStructuredOutput(documentSchema);
+    const getSchema = (chapter: string) => {
+      switch (chapter) {
+        case 'preliminares': return preliminaresSchema;
+        case 'cap1': return capitulo1Schema;
+        case 'cap2': return capitulo2Schema;
+        case 'cap3': return capitulo3Schema;
+        case 'cap4': return capitulo4Schema;
+        case 'conclusiones': return extrasSchema;
+        default: return documentSchema;
+      }
+    };
+
+    const activeSchema = getSchema(targetChapter);
+    const structuredModel = model.withStructuredOutput(activeSchema);
 
     const promptTemplate = PromptTemplate.fromTemplate(`
-      Actúa como un tutor académico experto y redactor de Informes de Práctica Profesional. Tu único objetivo es redactar, estructurar y corregir informes de pasantías basándote estrictamente en las normativas proporcionadas.
-      Adaptarás el contenido a cualquier carrera y tema, manteniendo un tono formal, técnico y en tercera persona.
-
-      REGLAS DE CONTENIDO Y ESTRUCTURA:
-      1. PÁGINAS PRELIMINARES: Genera contenido para Portada, Actas de Evaluación (Institucional, Académico, Evaluador), Dedicatoria e Introducción.
-      2. INTRODUCCIÓN: Debe ser una redacción técnica y fluida que presente el proyecto (mínimo 300 palabras).
-      3. CAPÍTULO I a IV: Procesa y mejora el texto del estudiante siguiendo la numeración exacta (1.1, 1.2... 2.1... 3.1... 4.1).
-      4. GLOSARIO: Ordenado ALFABÉTICAMENTE de forma obligatoria.
-      5. BIBLIOGRAFÍA: Formato APA, con sangría francesa (simulada en el texto) y espacio de 1.5cm entre citas.
-      6. EVIDENCIAS: En la sección 3.2, es obligatorio referenciar "Anexo 1", "Anexo 2", etc.
-
-      ORIENTACIÓN DE ESTILO:
-      - Tono formal y técnico.
-      - Evita repeticiones.
-      - Si falta información (como misión, visión o coordenadas), GENERA información coherente con el tipo de empresa mencionado.
-      
-      {languageInstruction}
-      {userInstructions}
-      {modeInstructions}
- 
-      Instrucciones adicionales de estilo:
-      {rulePrompt}
- 
-      A continuación se presenta el contenido del documento borrador del estudiante:
-      ---
-      {documentText}
-      ---
+       System: Eres un experto en redacción de informes de práctica pre-profesional.
+       Reglas específicas: {rulePrompt}
+       Instrucciones de modo: {modeInstructions}
+       Idioma: {languageInstruction}
+       Usuario: {userInstructions}
+       
+       {isolationInstruction}
+       
+       A continuación se presenta el contenido del documento borrador del estudiante:
+       ---
+       {documentText}
+       ---
     `);
+
+     const isolationInstruction = isIsolated 
+       ? `CRÍTICO (MODO ENFOQUE SECCIÓN): Tu misión es generar CONTENIDO DE ALTA CALIDAD, EXTENSO Y PROFESIONAL exclusivamente para la sección: ${targetChapter}. 
+          - No escatimes en detalles ni en la cantidad de palabras para esta sección específica.
+          - Tu redacción debe ser rica, técnica y detallada, siguiendo los estándares de un informe de ingeniería.
+          - Mantén la coherencia con el resto del borrador proporcionado por el estudiante.
+          - Ignora o deja los campos de OTRAS secciones como valores por defecto (ej. strings vacíos o arrays vacíos), para no sobreescribir el trabajo existente de otras partes del documento.`
+       : `MODO COMPLETO: Genera el informe completo siguiendo todas las secciones con la máxima calidad, profundidad y extensión posible.`;
 
     const languageInstruction = language === 'en' 
       ? `CRITICAL: The entire output MUST be in ENGLISH. This includes but is not limited to: Preliminary pages, Introductions, Chapters, Glossary, Bibliography, and the Gantt Chart (Objectives, Activities, Tasks).`
@@ -109,18 +125,21 @@ export async function POST(req: NextRequest) {
       documentText: text,
       modeInstructions: finalModeInstructions,
       userInstructions: userInstructions,
-      languageInstruction: languageInstruction
+      languageInstruction: languageInstruction,
+      isolationInstruction: isolationInstruction
     });
 
     // 3. Obtener respuesta estructurada de la IA (Capa 2)
     const documentData = await structuredModel.invoke(formattedPrompt);
 
-    // 4. Validar las reglas de negocio (Capa 4)
-    const validation = validateDocument(documentData, { 
-      skipGantt: generationMode === 'word' 
-    });
-    if (!validation.valid) {
-      return NextResponse.json({ error: 'La IA no pudo cumplir con todas las normativas estrictas de validación.', detalles: validation.errors }, { status: 400 });
+    // 4. Validar las reglas de negocio (Capa 4) - Solo en modo completo
+    if (!isIsolated) {
+      const validation = validateDocument(documentData as any, { 
+        skipGantt: generationMode === 'word' 
+      });
+      if (!validation.valid) {
+        return NextResponse.json({ error: 'La IA no pudo cumplir con todas las normativas estrictas de validación.', detalles: validation.errors }, { status: 400 });
+      }
     }
 
     // 5. Retornar los datos estructurados para que el cliente decida qué exportar

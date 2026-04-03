@@ -12,6 +12,7 @@ import type {
   GanttTheme,
   ProcessedDocumentData,
   Signatures,
+  TargetChapter,
 } from '@/types/dashboard';
 
 interface ProcessorDeps {
@@ -26,6 +27,7 @@ interface ProcessorDeps {
   editableGanttData: GanttObjective[];
   signatures: Signatures;
   ganttTheme: GanttTheme;
+  targetChapter: TargetChapter;
   setIsProcessing: (v: boolean) => void;
   setResult: (r: string | null) => void;
   setProcessedData: (d: ProcessedDocumentData | null) => void;
@@ -45,6 +47,7 @@ function buildFormData(deps: ProcessorDeps): FormData {
   formData.append('apiKey', apiKey);
   formData.append('userPrompt', userPrompt);
   formData.append('language', lang);
+  formData.append('targetChapter', deps.targetChapter);
   return formData;
 }
 
@@ -74,7 +77,10 @@ export function useDocumentProcessor(deps: ProcessorDeps) {
 
     setIsProcessing(true);
     setResult(null);
-    setProcessedData(null);
+    // Only clear if generating everything
+    if (deps.targetChapter === 'all') {
+      setProcessedData(null);
+    }
 
     try {
       const formData = buildFormData(deps);
@@ -89,7 +95,18 @@ export function useDocumentProcessor(deps: ProcessorDeps) {
       }
 
       const data: ProcessedDocumentData = await response.json();
-      setProcessedData(data);
+      
+      // Deep Merge logic for partial updates
+      if (deps.targetChapter !== 'all' && processedData) {
+        setProcessedData({
+          ...processedData,
+          ...data,
+          // Special handling for nested objects if needed, 
+          // but for now top-level merge covers Chapters
+        });
+      } else {
+        setProcessedData(data);
+      }
       setEditableGanttData(data.capitulo3?.diagramaGanttData ?? []);
       setSignatures({
         tutorAcademico: data.firmasGantt?.tutorAcademico ?? '',

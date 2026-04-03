@@ -10,6 +10,7 @@ import type {
   ProcessedDocumentData, Signatures,
 } from '@/types/dashboard';
 import { GanttEditor } from './GanttEditor';
+import { AdBanner } from '@/features/dashboard/components/AdBanner';
 
 interface ResultsViewProps {
   t: TranslationDict;
@@ -103,6 +104,16 @@ export function ResultsView({
           onToggleWeek={onToggleWeek}
         />
       )}
+
+      {/* AdSense Unit */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="glass rounded-2xl p-6 border-zinc-800 flex items-center justify-center min-h-25"
+      >
+        <AdBanner />
+      </motion.div>
     </motion.div>
   );
 }
