@@ -10,6 +10,8 @@ export type GenerationMode = 'both' | 'word' | 'gantt';
 
 export type GanttTheme = 'institutional' | 'modern' | 'academic';
 
+export type TargetChapter = 'all' | 'preliminares' | 'cap1' | 'cap2' | 'cap3' | 'cap4' | 'conclusiones';
+
 export interface Signatures {
   tutorAcademico: string;
   tutorInstitucional: string;
@@ -66,4 +68,5 @@ export interface DashboardState {
   showApiKey: boolean;
   editableGanttData: GanttObjective[];
   signatures: Signatures;
+  targetChapter: TargetChapter;
 }

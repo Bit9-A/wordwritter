@@ -12,6 +12,7 @@ import type {
   GanttTheme,
   ProcessedDocumentData,
   Signatures,
+  TargetChapter,
 } from '@/types/dashboard';
 
 interface ProcessorDeps {
@@ -22,6 +23,7 @@ interface ProcessorDeps {
   selectedModel: string;
   userPrompt: string;
   lang: Language;
+  targetChapter: TargetChapter;
   processedData: ProcessedDocumentData | null;
   editableGanttData: GanttObjective[];
   signatures: Signatures;
@@ -35,7 +37,7 @@ interface ProcessorDeps {
 }
 
 function buildFormData(deps: ProcessorDeps): FormData {
-  const { file, selectedRuleId, generationMode, selectedModel, apiKey, userPrompt, lang } = deps;
+  const { file, selectedRuleId, generationMode, selectedModel, apiKey, userPrompt, lang, targetChapter } = deps;
   const formData = new FormData();
   formData.append('file', file!);
   formData.append('ruleId', selectedRuleId);
@@ -45,6 +47,7 @@ function buildFormData(deps: ProcessorDeps): FormData {
   formData.append('apiKey', apiKey);
   formData.append('userPrompt', userPrompt);
   formData.append('language', lang);
+  formData.append('targetChapter', targetChapter);
   return formData;
 }
 

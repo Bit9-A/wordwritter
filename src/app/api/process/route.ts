@@ -6,6 +6,7 @@ import { PromptTemplate } from '@langchain/core/prompts';
 import { documentSchema } from '@/lib/schema';
 import { validateDocument } from '@/lib/validator';
 import { generateDocument } from '@/lib/docx-generator';
+import { INTERNSHIP_GUIDELINES } from '@/config/internship-guidelines';
 
 export const maxDuration = 60;
 
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
     const userApiKey = formData.get('apiKey') as string;
     const userPrompt = formData.get('userPrompt') as string || '';
     const language = formData.get('language') as string || 'es';
+    const targetChapter = formData.get('targetChapter') as string || 'all';
 
     if (!file || !ruleId) {
       return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 });
@@ -64,9 +66,14 @@ export async function POST(req: NextRequest) {
       - Evita repeticiones.
       - Si falta información (como misión, visión o coordenadas), GENERA información coherente con el tipo de empresa mencionado.
       
+      {internshipGuidelines}
+
+      {currentDateInfo}
+
       {languageInstruction}
       {userInstructions}
       {modeInstructions}
+      {targetChapterInstructions}
  
       Instrucciones adicionales de estilo:
       {rulePrompt}
@@ -104,12 +111,41 @@ export async function POST(req: NextRequest) {
 
     const finalModeInstructions = `${modeInstructions}\n\n${ganttInstructions}`;
 
+    let targetChapterInstructions = "";
+    if (targetChapter !== 'all') {
+      const chapterMap: Record<string, string> = {
+        'preliminares': 'las Páginas Preliminares (Portada, Actas, Dedicatoria, Introducción)',
+        'cap1': 'el Capítulo I (La Empresa)',
+        'cap2': 'el Capítulo II (El Problema)',
+        'cap3': 'el Capítulo III (La Solución / Cronograma)',
+        'cap4': 'el Capítulo IV (Conocimientos Adquiridos)',
+        'conclusiones': 'las Conclusiones, Recomendaciones, Glosario y Bibliografía',
+      };
+      
+      const chapterName = chapterMap[targetChapter] || targetChapter;
+      
+      targetChapterInstructions = `
+      INSTRUCCIÓN CRÍTICA DE AISLAMIENTO:
+      El usuario ha solicitado ENFOCARSE EXCLUSIVAMENTE en **${chapterName}**.
+      - SOLO puedes modificar, mejorar, generar o alterar el texto correspondiente a **${chapterName}**.
+      - Para TODAS LAS DEMÁS SECCIONES y capítulos, debes copiar fielmente el texto proveído por el usuario como SOLO LECTURA sin alterar absolutamente nada, excepto si necesitas llenar una estructura obligatoria vacía (en cuyo caso pon "No provisto").
+      `;
+    }
+
+    const currentDate = new Date();
+    const currentMonth = currentDate.toLocaleString(language === 'en' ? 'en-US' : 'es-ES', { month: 'long' });
+    const currentYear = currentDate.getFullYear();
+    const currentDateInfo = `INFORMACIÓN TEMPORAL: El año actual es ${currentYear} y el mes actual es ${currentMonth}. Usa estos valores cada vez que debas colocar fechas actuales para el documento.`;
+
     const formattedPrompt = await promptTemplate.format({
       rulePrompt: rule.prompt,
       documentText: text,
       modeInstructions: finalModeInstructions,
       userInstructions: userInstructions,
-      languageInstruction: languageInstruction
+      languageInstruction: languageInstruction,
+      targetChapterInstructions: targetChapterInstructions,
+      internshipGuidelines: INTERNSHIP_GUIDELINES,
+      currentDateInfo: currentDateInfo
     });
 
     // 3. Obtener respuesta estructurada de la IA (Capa 2)

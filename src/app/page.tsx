@@ -21,15 +21,16 @@ export default function Home() {
     t, rules, selectedRuleId, file, isProcessing, isMounted, lang,
     processedData, generationMode, selectedModel, ganttTheme,
     apiKey, userPrompt, showApiKey, editableGanttData, signatures,
+    targetChapter,
     setSelectedRuleId, setFile, setIsProcessing, setLang,
     setProcessedData, setResult, setGenerationMode, setSelectedModel,
     setGanttTheme, setUserPrompt, setShowApiKey,
-    setEditableGanttData, setSignatures, handleApiKeyChange,
+    setEditableGanttData, setSignatures, setTargetChapter, handleApiKeyChange,
   } = state;
 
   const { handleSubmit, toggleWeek, downloadFile } = useDocumentProcessor({
     file, selectedRuleId, apiKey, generationMode, selectedModel,
-    userPrompt, lang, processedData, editableGanttData,
+    userPrompt, lang, targetChapter, processedData, editableGanttData,
     signatures, ganttTheme,
     setIsProcessing, setResult, setProcessedData,
     setEditableGanttData, setSignatures, t,
@@ -67,6 +68,7 @@ export default function Home() {
               file={file}
               generationMode={generationMode}
               ganttTheme={ganttTheme}
+              targetChapter={targetChapter}
               isProcessing={isProcessing}
               onRuleChange={setSelectedRuleId}
               onModelChange={setSelectedModel}
@@ -77,6 +79,7 @@ export default function Home() {
               onSubmit={handleSubmit}
               onModeChange={setGenerationMode}
               onThemeChange={(theme) => setGanttTheme(theme as GanttTheme)}
+              onTargetChapterChange={setTargetChapter}
             />
           ) : isProcessing ? (
             <ProcessingView t={t} />

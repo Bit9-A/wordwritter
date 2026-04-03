@@ -14,6 +14,7 @@ import type {
   GanttTheme,
   GanttObjective,
   Signatures,
+  TargetChapter,
 } from '@/types/dashboard';
 
 interface UseDashboardStateReturn extends DashboardState {
@@ -32,6 +33,7 @@ interface UseDashboardStateReturn extends DashboardState {
   setShowApiKey: (v: boolean) => void;
   setEditableGanttData: (data: GanttObjective[]) => void;
   setSignatures: (sigs: Signatures) => void;
+  setTargetChapter: (chapter: TargetChapter) => void;
   handleApiKeyChange: (value: string) => void;
 }
 
@@ -56,6 +58,7 @@ export function useDashboardState(): UseDashboardStateReturn {
     tutorInstitucional: '',
     pasante: '',
   });
+  const [targetChapter, setTargetChapter] = useState<TargetChapter>('all');
 
   useEffect(() => {
     const allRules = getRevisionRules();
@@ -101,6 +104,7 @@ export function useDashboardState(): UseDashboardStateReturn {
     showApiKey, setShowApiKey,
     editableGanttData, setEditableGanttData,
     signatures, setSignatures,
+    targetChapter, setTargetChapter,
     handleApiKeyChange,
     t,
   };
