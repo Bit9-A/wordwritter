@@ -3,7 +3,7 @@ import { getRuleById } from '@/lib/rules';
 import * as mammoth from 'mammoth';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { PromptTemplate } from '@langchain/core/prompts';
-import { documentSchema } from '@/lib/schema';
+import { documentSchema, preliminaresSchema, capitulo1Schema, capitulo2Schema, capitulo3Schema, capitulo4Schema, conclusionesSchema } from '@/lib/schema';
 import { validateDocument } from '@/lib/validator';
 import { generateDocument } from '@/lib/docx-generator';
 import { INTERNSHIP_GUIDELINES } from '@/config/internship-guidelines';
@@ -47,7 +47,15 @@ export async function POST(req: NextRequest) {
       model: selectedModel, 
     });
 
-    const structuredModel = model.withStructuredOutput(documentSchema);
+    let activeSchema: any = documentSchema;
+    if (targetChapter === 'preliminares') activeSchema = preliminaresSchema;
+    else if (targetChapter === 'cap1') activeSchema = capitulo1Schema;
+    else if (targetChapter === 'cap2') activeSchema = capitulo2Schema;
+    else if (targetChapter === 'cap3') activeSchema = capitulo3Schema;
+    else if (targetChapter === 'cap4') activeSchema = capitulo4Schema;
+    else if (targetChapter === 'conclusiones') activeSchema = conclusionesSchema;
+
+    const structuredModel = model.withStructuredOutput(activeSchema);
 
     const promptTemplate = PromptTemplate.fromTemplate(`
       Actúa como un tutor académico experto y redactor de Informes de Práctica Profesional. Tu único objetivo es redactar, estructurar y corregir informes de pasantías basándote estrictamente en las normativas proporcionadas.
@@ -127,8 +135,8 @@ export async function POST(req: NextRequest) {
       targetChapterInstructions = `
       INSTRUCCIÓN CRÍTICA DE AISLAMIENTO:
       El usuario ha solicitado ENFOCARSE EXCLUSIVAMENTE en **${chapterName}**.
-      - SOLO puedes modificar, mejorar, generar o alterar el texto correspondiente a **${chapterName}**.
-      - Para TODAS LAS DEMÁS SECCIONES y capítulos, debes copiar fielmente el texto proveído por el usuario como SOLO LECTURA sin alterar absolutamente nada, excepto si necesitas llenar una estructura obligatoria vacía (en cuyo caso pon "No provisto").
+      - SOLO debes estructurar y devolver datos para **${chapterName}**.
+      - Ignora completamente cualquier otra sección del documento. Solo genera la estructura de la sección solicitada.
       `;
     }
 
@@ -152,11 +160,15 @@ export async function POST(req: NextRequest) {
     const documentData = await structuredModel.invoke(formattedPrompt);
 
     // 4. Validar las reglas de negocio (Capa 4)
-    const validation = validateDocument(documentData, { 
-      skipGantt: generationMode === 'word' 
-    });
-    if (!validation.valid) {
-      return NextResponse.json({ error: 'La IA no pudo cumplir con todas las normativas estrictas de validación.', detalles: validation.errors }, { status: 400 });
+    // Only validate the whole document if we are generating the entire document. 
+    // Partial schemas might fail full validation because they don't have all fields.
+    if (targetChapter === 'all') {
+      const validation = validateDocument(documentData as any, { 
+        skipGantt: generationMode === 'word' 
+      });
+      if (!validation.valid) {
+        return NextResponse.json({ error: 'La IA no pudo cumplir con todas las normativas estrictas de validación.', detalles: validation.errors }, { status: 400 });
+      }
     }
 
     // 5. Retornar los datos estructurados para que el cliente decida qué exportar

@@ -77,7 +77,9 @@ export function useDocumentProcessor(deps: ProcessorDeps) {
 
     setIsProcessing(true);
     setResult(null);
-    setProcessedData(null);
+    if (deps.targetChapter === 'all') {
+      setProcessedData(null);
+    }
 
     try {
       const formData = buildFormData(deps);
@@ -91,13 +93,21 @@ export function useDocumentProcessor(deps: ProcessorDeps) {
         throw new Error(errorData.error || t.errors.processError);
       }
 
-      const data: ProcessedDocumentData = await response.json();
-      setProcessedData(data);
-      setEditableGanttData(data.capitulo3?.diagramaGanttData ?? []);
+      const data: Partial<ProcessedDocumentData> = await response.json();
+      
+      let finalData: ProcessedDocumentData;
+      if (deps.targetChapter !== 'all' && processedData) {
+         finalData = { ...processedData, ...data } as ProcessedDocumentData;
+      } else {
+         finalData = data as ProcessedDocumentData;
+      }
+
+      setProcessedData(finalData);
+      setEditableGanttData(finalData.capitulo3?.diagramaGanttData ?? []);
       setSignatures({
-        tutorAcademico: data.firmasGantt?.tutorAcademico ?? '',
-        tutorInstitucional: data.firmasGantt?.tutorInstitucional ?? '',
-        pasante: data.firmasGantt?.pasante ?? `${data.portada.nombres} ${data.portada.apellidos}`,
+        tutorAcademico: finalData.firmasGantt?.tutorAcademico ?? '',
+        tutorInstitucional: finalData.firmasGantt?.tutorInstitucional ?? '',
+        pasante: finalData.firmasGantt?.pasante ?? `${finalData.portada?.nombres || ''} ${finalData.portada?.apellidos || ''}`.trim(),
       });
       setResult(generationMode !== 'word' ? t.results.ready : t.results.title);
     } catch (error: any) {

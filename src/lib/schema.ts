@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const documentSchema = z.object({
+export const preliminaresSchema = z.object({
   portada: z.object({
     nombres: z.string().describe("Nombres del estudiante en MAYÚSCULAS"),
     apellidos: z.string().describe("Apellidos del estudiante en MAYÚSCULAS"),
@@ -20,7 +20,9 @@ export const documentSchema = z.object({
   dedicatoria: z.string().optional().describe("Texto de dedicatoria opcional"),
   
   introduccion: z.string().describe("Introducción del informe (mínimo 1 página proyectada)"),
+});
 
+export const capitulo1Schema = z.object({
   capitulo1: z.object({
     ubicacionGeografica: z.string(),
     resenaHistorica: z.string(),
@@ -36,7 +38,9 @@ export const documentSchema = z.object({
     nombreJefe: z.string(),
     funcionesDepartamento: z.string(),
   }),
+});
 
+export const capitulo2Schema = z.object({
   capitulo2: z.object({
     tituloProyecto: z.string(),
     planteamientoProblema: z.string(),
@@ -48,7 +52,9 @@ export const documentSchema = z.object({
     alcance: z.string(),
     limitaciones: z.string(),
   }),
+});
 
+export const capitulo3Schema = z.object({
   capitulo3: z.object({
     diagramaGanttText: z.string().describe("Descripción textual introductoria del diagrama."),
     diagramaGanttData: z.array(z.object({
@@ -67,11 +73,15 @@ export const documentSchema = z.object({
     })),
     logrosActividades: z.string(),
   }),
+});
 
+export const capitulo4Schema = z.object({
   capitulo4: z.object({
     conocimientosAdquiridos: z.string(),
   }),
+});
 
+export const conclusionesSchema = z.object({
   conclusiones: z.string(),
   
   recomendaciones: z.object({
@@ -89,5 +99,13 @@ export const documentSchema = z.object({
 
   anexosText: z.string().describe("Texto introductorio para la sección de anexos o listado de anexos referenciados en el capítulo 3."),
 });
+
+// Reensamblado del esquema completo usando lodash/merge equivalent en zod: merge
+export const documentSchema = preliminaresSchema
+  .merge(capitulo1Schema)
+  .merge(capitulo2Schema)
+  .merge(capitulo3Schema)
+  .merge(capitulo4Schema)
+  .merge(conclusionesSchema);
 
 export type DocumentData = z.infer<typeof documentSchema>;

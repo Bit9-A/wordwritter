@@ -140,7 +140,7 @@ function textToParas(text: string): Paragraph[] {
 }
 
 // ─── Función principal ────────────────────────────────────────────────────────
-export async function generateDocument(data: DocumentData): Promise<Buffer> {
+export async function generateDocument(data: Partial<DocumentData>): Promise<Buffer> {
 
   const doc = new Document({
     features: {
@@ -202,7 +202,7 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 1: PORTADA  (sin numeración)
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.portada ? [{
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
@@ -267,12 +267,12 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
             children: [new TextRun({ text: `${data.portada.ciudad ?? 'San Cristóbal'}, ${data.portada.fechaMes} de ${data.portada.fechaAno}`, font: FONT, size: FONT_SIZE, color: BLACK })],
           }),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 2: PÁGINAS PRELIMINARES  (numeración romana)
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.actasEvaluacion ? [{
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
@@ -318,12 +318,12 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
             pageBreak(),
           ] : []),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 3: INTRODUCCIÓN  (reinicia numeración arábiga en p. 1)
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.introduccion ? [{
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
@@ -337,12 +337,12 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
           ...textToParas(data.introduccion),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 4: CAPÍTULO I
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.capitulo1 ? [{
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
@@ -396,12 +396,12 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           heading2('1.10 Funciones del Departamento'),
           ...textToParas(data.capitulo1.funcionesDepartamento),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 5: CAPÍTULO II
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.capitulo2 ? [{
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
@@ -443,12 +443,12 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           heading2('2.6 Limitaciones'),
           ...textToParas(data.capitulo2.limitaciones),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 6: CAPÍTULO III — GANTT (Horizontal)
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.capitulo3 ? [{
         properties: {
           page: {
             size: {
@@ -477,12 +477,12 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
             children: [new TextRun({ text: '[Diagrama de Gantt — insertar imagen aquí]', font: FONT, size: FONT_SIZE, color: BLACK, italics: true })],
           }),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 7: CAPÍTULO III — Actividades (Vertical)
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.capitulo3 ? [{
         properties: {
           page: {
             size: { orientation: PageOrientation.PORTRAIT, width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
@@ -500,12 +500,12 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           heading2('3.3 Logros de las Actividades'),
           ...textToParas(data.capitulo3.logrosActividades),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 8: CAPÍTULO IV
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.capitulo4 ? [{
         properties: {
           page: {
             size: { width: convertInchesToTwip(8.5), height: convertInchesToTwip(11) },
@@ -518,24 +518,24 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
           ...textToParas(data.capitulo4.conocimientosAdquiridos),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 9: CONCLUSIONES
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.conclusiones ? [{
         properties: { page: { margin: M_CHAP } },
         children: [
           heading1('CONCLUSIONES'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
           ...textToParas(data.conclusiones),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 10: RECOMENDACIONES
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.recomendaciones ? [{
         properties: { page: { margin: M_CHAP } },
         children: [
           heading1('RECOMENDACIONES'),
@@ -550,12 +550,12 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           heading2('A los Nuevos Pasantes'),
           ...textToParas(data.recomendaciones.nuevosPasantes),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 11: GLOSARIO
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.glosario ? [{
         properties: { page: { margin: M_CHAP } },
         children: [
           heading1('GLOSARIO'),
@@ -567,12 +567,12 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
             ])
           ),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 12: BIBLIOGRAFÍA (APA 6 — Sangría francesa)
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.bibliografia ? [{
         properties: { page: { margin: M_CHAP } },
         children: [
           heading1('BIBLIOGRAFÍA'),
@@ -586,19 +586,19 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
             })
           ),
         ],
-      },
+      }] : []),
 
       // ══════════════════════════════════════════════════════════════
       // SECCIÓN 13: ANEXOS
       // ══════════════════════════════════════════════════════════════
-      {
+      ...(data.anexosText ? [{
         properties: { page: { margin: M_CHAP } },
         children: [
           heading1('ANEXOS'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
           ...textToParas(data.anexosText),
         ],
-      },
+      }] : []),
 
     ],
   });
