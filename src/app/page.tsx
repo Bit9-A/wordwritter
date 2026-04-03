@@ -33,7 +33,7 @@ export default function Home() {
     userPrompt, lang, targetChapter, processedData, editableGanttData,
     signatures, ganttTheme,
     setIsProcessing, setResult, setProcessedData,
-    setEditableGanttData, setSignatures, t,
+    setEditableGanttData, setSignatures, rules, t,
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,16 +115,6 @@ export default function Home() {
           </div>
 
           <div className="flex gap-4">
-            <div className="w-full max-w-xs overflow-hidden opacity-30 grayscale hover:grayscale-0 transition-all">
-              <ins
-                className="adsbygoogle"
-                style={{ display: 'block' }}
-                data-ad-client="ca-pub-6219970220596393"
-                data-ad-slot="8730014249"
-                data-ad-format="auto"
-                data-full-width-responsive="true"
-              />
-            </div>
           </div>
 
           <p className="text-[8px] font-black uppercase tracking-[0.4em] opacity-20">

@@ -20,7 +20,7 @@ interface ResultsViewProps {
   signatures: Signatures;
   fileName: string;
   onReset: () => void;
-  onDownload: (endpoint: string, filename: string) => void;
+  onDownload: (type: 'word' | 'excel', filename: string) => void;
   onThemeChange: (theme: string) => void;
   onSignaturesChange: (sigs: Signatures) => void;
   onToggleWeek: (objIdx: number, actIdx: number, tareaIdx: number, week: number) => void;
@@ -63,7 +63,7 @@ export function ResultsView({
             <motion.button
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => onDownload('/api/export/word', `final_${fileName}`)}
+              onClick={() => onDownload('word', `final_${fileName}`)}
               className="px-6 py-4 bg-white text-zinc-950 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2"
             >
               <FileText size={18} />
@@ -74,7 +74,7 @@ export function ResultsView({
             <motion.button
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => onDownload('/api/export/excel', `gantt_${fileName.replace('.docx', '')}.xlsx`)}
+              onClick={() => onDownload('excel', `gantt_${fileName.replace('.docx', '')}.xlsx`)}
               className="px-6 py-4 bg-accent text-zinc-950 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2"
             >
               <ProjectorScreenChart size={18} />

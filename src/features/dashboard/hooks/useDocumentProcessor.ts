@@ -14,6 +14,10 @@ import type {
   Signatures,
   TargetChapter,
 } from '@/types/dashboard';
+import { processDocumentLocally } from '@/lib/processor-service';
+import { generateDocument } from '@/lib/docx-generator';
+import { generateGanttExcel } from '@/lib/excel-generator';
+import type { RevisionRule } from '@/lib/rules';
 
 interface ProcessorDeps {
   file: File | null;
@@ -33,23 +37,11 @@ interface ProcessorDeps {
   setProcessedData: (d: ProcessedDocumentData | null) => void;
   setEditableGanttData: (d: GanttObjective[]) => void;
   setSignatures: (s: Signatures) => void;
+  rules: RevisionRule[];
   t: { errors: { processError: string }; results: { ready: string; title: string } };
 }
 
-function buildFormData(deps: ProcessorDeps): FormData {
-  const { file, selectedRuleId, generationMode, selectedModel, apiKey, userPrompt, lang, targetChapter } = deps;
-  const formData = new FormData();
-  formData.append('file', file!);
-  formData.append('ruleId', selectedRuleId);
-  formData.append('includeGantt', String(generationMode !== 'word'));
-  formData.append('generationMode', generationMode);
-  formData.append('model', selectedModel);
-  formData.append('apiKey', apiKey);
-  formData.append('userPrompt', userPrompt);
-  formData.append('language', lang);
-  formData.append('targetChapter', targetChapter);
-  return formData;
-}
+// buildFormData removed as it is no longer needed for local processing
 
 function triggerBrowserDownload(blob: Blob, filename: string): void {
   const url = window.URL.createObjectURL(blob);
@@ -80,18 +72,18 @@ export function useDocumentProcessor(deps: ProcessorDeps) {
     setProcessedData(null);
 
     try {
-      const formData = buildFormData(deps);
-      const response = await fetch('/api/process', {
-        method: 'POST',
-        body: formData,
+      const selectedRule = deps.rules.find(r => r.id === selectedRuleId);
+      if (!selectedRule) throw new Error("Rule not found");
+
+      const data = await processDocumentLocally(file, selectedRule, {
+        apiKey,
+        model: deps.selectedModel,
+        generationMode,
+        userPrompt: deps.userPrompt,
+        language: deps.lang,
+        targetChapter: deps.targetChapter
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || t.errors.processError);
-      }
-
-      const data: ProcessedDocumentData = await response.json();
       setProcessedData(data);
       setEditableGanttData(data.capitulo3?.diagramaGanttData ?? []);
       setSignatures({
@@ -116,7 +108,7 @@ export function useDocumentProcessor(deps: ProcessorDeps) {
     setEditableGanttData(newData);
   };
 
-  const downloadFile = async (endpoint: string, filename: string) => {
+  const downloadFile = async (type: 'word' | 'excel', filename: string) => {
     if (!processedData) return;
     const payload = {
       ...processedData,
@@ -126,12 +118,14 @@ export function useDocumentProcessor(deps: ProcessorDeps) {
     };
 
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const blob = await response.blob();
+      let blob: Blob;
+      if (type === 'word') {
+        const buffer = await generateDocument(payload as any);
+        blob = new Blob([new Uint8Array(buffer)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      } else {
+        const buffer = await generateGanttExcel(payload, ganttTheme);
+        blob = new Blob([new Uint8Array(buffer as any)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      }
       triggerBrowserDownload(blob, filename);
     } catch (error: any) {
       alert('Error en la descarga: ' + error.message);

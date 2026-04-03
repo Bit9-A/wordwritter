@@ -17,9 +17,6 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "WordWritter | Redacción Académica de Alto Nivel",
   description: "Optimización de informes profesionales y generación de cronogramas técnicos con IA de última generación.",
-  other: {
-    "google-adsense-account": "ca-pub-6219970220596393",
-  },
 };
 
 export default function RootLayout({
@@ -33,12 +30,6 @@ export default function RootLayout({
       className={`${outfit.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6219970220596393"
-          crossOrigin="anonymous"
-          strategy="beforeInteractive"
-        />
       </head>
       <body className="min-h-[100dvh] flex flex-col selection:bg-accent/30 selection:text-accent">
         {children}
