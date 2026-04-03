@@ -4,6 +4,7 @@
 // ============================================================
 import { motion } from 'framer-motion';
 import { CircleNotch } from '@phosphor-icons/react';
+import { AdBanner } from './AdBanner';
 import type { TranslationDict } from '@/lib/i18n';
 
 interface ProcessingViewProps {
@@ -55,6 +56,11 @@ export function ProcessingView({ t }: ProcessingViewProps) {
       {/* Debug tags */}
       <div className="flex gap-8 text-[10px] font-black text-zinc-700 uppercase tracking-[0.2em] animate-pulse">
         {STATUS_TAGS.map((tag) => <span key={tag}>{tag}</span>)}
+      </div>
+
+      {/* AdSense Unit */}
+      <div className="w-full max-w-lg mt-8 p-4 glass rounded-2xl border-zinc-800 flex items-center justify-center min-h-[100px]">
+        <AdBanner />
       </div>
     </motion.div>
   );

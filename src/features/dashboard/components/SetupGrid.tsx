@@ -8,6 +8,7 @@ import {
   CheckCircle, FileText, ProjectorScreenChart, HardDrives,
   Lightning, Palette, Briefcase,
 } from '@phosphor-icons/react';
+import { AdBanner } from './AdBanner';
 import type { RevisionRule } from '@/lib/rules';
 import type { TranslationDict } from '@/lib/i18n';
 import type { GenerationMode, GanttTheme, TargetChapter } from '@/types/dashboard';
@@ -279,6 +280,13 @@ export function SetupGrid({
             ))}
           </div>
         </div>
+      </motion.div>
+      {/* AdSense Unit */}
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="lg:col-span-12 glass rounded-2xl p-4 border-zinc-800 flex items-center justify-center min-h-[100px]"
+      >
+        <AdBanner />
       </motion.div>
     </motion.div>
   );
