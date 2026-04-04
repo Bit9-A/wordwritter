@@ -10,6 +10,7 @@ import type {
   ProcessedDocumentData, Signatures,
 } from '@/types/dashboard';
 import { GanttEditor } from './GanttEditor';
+import { AdScriptLoader } from './AdScriptLoader';
 
 interface ResultsViewProps {
   t: TranslationDict;
@@ -89,6 +90,11 @@ export function ResultsView({
             <ArrowRight size={18} className="rotate-180" />
           </motion.button>
         </div>
+      </div>
+
+      {/* Ad Unit (New) */}
+      <div className="w-full glass rounded-2xl p-4 border-zinc-800 flex flex-col items-center justify-center min-h-[100px]">
+        <AdScriptLoader scriptUrl="//selfassured-celebration.com/bxX/VZs.djGSlM0JYuWDcd/he/mD9mu/ZZUPl_kyPZTpYb5TMwjAY/5bMEzHcBt/NkjxkVyzNhjmkt0CM/QT" />
       </div>
 
       {/* Gantt Interactive Editor */}

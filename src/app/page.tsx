@@ -116,7 +116,7 @@ export default function Home() {
           </div>
 
           <div className="flex gap-4">
-            <div className="w-full max-w-xs overflow-hidden opacity-30 grayscale hover:grayscale-0 transition-all">
+            <div className="w-full max-w-xs overflow-hidden transition-all">
               <AdBanner />
             </div>
           </div>

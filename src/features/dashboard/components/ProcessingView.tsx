@@ -43,6 +43,11 @@ export function ProcessingView({ t }: ProcessingViewProps) {
         </p>
       </div>
 
+      {/* Ad Unit (Moved here for better visibility) */}
+      <div className="w-full max-w-lg p-4 glass rounded-2xl border-zinc-800 flex flex-col items-center justify-center min-h-[100px]">
+        <AdScriptLoader scriptUrl="//selfassured-celebration.com/bxX/VZs.djGSlM0JYuWDcd/he/mD9mu/ZZUPl_kyPZTpYb5TMwjAY/5bMEzHcBt/NkjxkVyzNhjmkt0CM/QT" />
+      </div>
+
       {/* Progress bar */}
       <div className="w-full max-w-md bg-zinc-900/50 border border-zinc-800 rounded-2xl p-1 overflow-hidden">
         <motion.div
@@ -56,11 +61,6 @@ export function ProcessingView({ t }: ProcessingViewProps) {
       {/* Debug tags */}
       <div className="flex gap-8 text-[10px] font-black text-zinc-700 uppercase tracking-[0.2em] animate-pulse">
         {STATUS_TAGS.map((tag) => <span key={tag}>{tag}</span>)}
-      </div>
-
-      {/* Ad Unit */}
-      <div className="w-full max-w-lg mt-8 p-4 glass rounded-2xl border-zinc-800 flex flex-col items-center justify-center min-h-[100px]">
-        <AdScriptLoader scriptUrl="//selfassured-celebration.com/bxX/VZs.djGSlM0JYuWDcd/he/mD9mu/ZZUPl_kyPZTpYb5TMwjAY/5bMEzHcBt/NkjxkVyzNhjmkt0CM/QT" />
       </div>
     </motion.div>
   );
