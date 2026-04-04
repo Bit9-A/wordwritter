@@ -33,94 +33,144 @@ export async function processDocumentLocally(
     model,
     generationConfig: {
       responseMimeType: "application/json",
-      // We define the schema manually or use a subset for better reliability
+      maxOutputTokens: 8192,
+      temperature: 0.7,
       responseSchema: {
         type: SchemaType.OBJECT,
         properties: {
           portada: {
             type: SchemaType.OBJECT,
             properties: {
-              titulo: { type: SchemaType.STRING },
+              tituloProyecto: { type: SchemaType.STRING },
               nombres: { type: SchemaType.STRING },
               apellidos: { type: SchemaType.STRING },
-              empresa: { type: SchemaType.STRING },
+              cedula: { type: SchemaType.STRING },
+              institucion: { type: SchemaType.STRING },
               ciudad: { type: SchemaType.STRING },
-              mes: { type: SchemaType.STRING },
-              anio: { type: SchemaType.STRING },
+              fechaMes: { type: SchemaType.STRING },
+              fechaAno: { type: SchemaType.STRING },
             },
-            required: ["titulo", "nombres", "apellidos", "empresa", "ciudad", "mes", "anio"],
+            required: ["tituloProyecto", "nombres", "apellidos", "cedula", "institucion", "ciudad", "fechaMes", "fechaAno"],
+          },
+          actasEvaluacion: {
+            type: SchemaType.OBJECT,
+            properties: {
+              actaInstitucional: { type: SchemaType.STRING },
+              actaAcademica: { type: SchemaType.STRING },
+              actaEvaluador: { type: SchemaType.STRING },
+            },
+            required: ["actaInstitucional", "actaAcademica", "actaEvaluador"],
           },
           introduccion: { type: SchemaType.STRING },
           capitulo1: {
             type: SchemaType.OBJECT,
             properties: {
-              secciones: {
-                type: SchemaType.ARRAY,
-                items: {
-                  type: SchemaType.OBJECT,
-                  properties: {
-                    titulo: { type: SchemaType.STRING },
-                    contenido: { type: SchemaType.STRING },
-                  },
-                  required: ["titulo", "contenido"],
-                }
-              }
+              ubicacionGeografica: { type: SchemaType.STRING },
+              resenaHistorica: { type: SchemaType.STRING },
+              mision: { type: SchemaType.STRING },
+              vision: { type: SchemaType.STRING },
+              valores: { type: SchemaType.STRING },
+              objetivosInstitucion: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  general: { type: SchemaType.STRING },
+                  especificos: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                },
+                required: ["general", "especificos"],
+              },
+              estructuraOrganizativa: { type: SchemaType.STRING },
+              descripcionDepartamento: { type: SchemaType.STRING },
+              nombreJefe: { type: SchemaType.STRING },
+              funcionesDepartamento: { type: SchemaType.STRING },
             },
-            required: ["secciones"],
+            required: ["ubicacionGeografica", "resenaHistorica", "mision", "vision", "valores", "objetivosInstitucion", "estructuraOrganizativa", "descripcionDepartamento", "nombreJefe", "funcionesDepartamento"],
           },
           capitulo2: {
             type: SchemaType.OBJECT,
             properties: {
-              secciones: {
-                type: SchemaType.ARRAY,
-                items: {
-                  type: SchemaType.OBJECT,
-                  properties: {
-                    titulo: { type: SchemaType.STRING },
-                    contenido: { type: SchemaType.STRING },
-                  },
-                  required: ["titulo", "contenido"],
-                }
-              }
+              tituloProyecto: { type: SchemaType.STRING },
+              planteamientoProblema: { type: SchemaType.STRING },
+              objetivos: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  general: { type: SchemaType.STRING },
+                  especificos: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                },
+                required: ["general", "especificos"],
+              },
+              justificacion: { type: SchemaType.STRING },
+              alcance: { type: SchemaType.STRING },
+              limitaciones: { type: SchemaType.STRING },
             },
-            required: ["secciones"],
+            required: ["tituloProyecto", "planteamientoProblema", "objetivos", "justificacion", "alcance", "limitaciones"],
           },
           capitulo3: {
             type: SchemaType.OBJECT,
             properties: {
-              secciones: {
+              diagramaGanttText: { type: SchemaType.STRING },
+              diagramaGanttData: {
                 type: SchemaType.ARRAY,
                 items: {
                   type: SchemaType.OBJECT,
                   properties: {
-                    titulo: { type: SchemaType.STRING },
-                    contenido: { type: SchemaType.STRING },
+                    objetivo: { type: SchemaType.STRING },
+                    actividades: {
+                      type: SchemaType.ARRAY,
+                      items: {
+                        type: SchemaType.OBJECT,
+                        properties: {
+                          descripcion: { type: SchemaType.STRING },
+                          tareas: {
+                            type: SchemaType.ARRAY,
+                            items: {
+                              type: SchemaType.OBJECT,
+                              properties: {
+                                descripcion: { type: SchemaType.STRING },
+                                semanas: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER } },
+                              },
+                              required: ["descripcion", "semanas"],
+                            }
+                          }
+                        },
+                        required: ["descripcion", "tareas"],
+                      }
+                    }
                   },
-                  required: ["titulo", "contenido"],
+                  required: ["objetivo", "actividades"],
                 }
-              }
+              },
+              descripcionActividadesSemanas: {
+                type: SchemaType.ARRAY,
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    semana: { type: SchemaType.STRING },
+                    descripcion: { type: SchemaType.STRING },
+                  },
+                  required: ["semana", "descripcion"],
+                }
+              },
+              logrosActividades: { type: SchemaType.STRING },
             },
-            required: ["secciones"],
+            required: ["diagramaGanttText", "diagramaGanttData", "descripcionActividadesSemanas", "logrosActividades"],
           },
           capitulo4: {
             type: SchemaType.OBJECT,
             properties: {
-              secciones: {
-                type: SchemaType.ARRAY,
-                items: {
-                  type: SchemaType.OBJECT,
-                  properties: {
-                    titulo: { type: SchemaType.STRING },
-                    contenido: { type: SchemaType.STRING },
-                  },
-                  required: ["titulo", "contenido"],
-                }
-              }
+              conocimientosAdquiridos: { type: SchemaType.STRING },
             },
-            required: ["secciones"],
+            required: ["conocimientosAdquiridos"],
           },
-          conclusiones: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-          recomendaciones: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          conclusiones: { type: SchemaType.STRING },
+          recomendaciones: {
+            type: SchemaType.OBJECT,
+            properties: {
+              universidad: { type: SchemaType.STRING },
+              institucion: { type: SchemaType.STRING },
+              nuevosPasantes: { type: SchemaType.STRING },
+            },
+            required: ["universidad", "institucion", "nuevosPasantes"],
+          },
           glosario: { 
             type: SchemaType.ARRAY, 
             items: { 
@@ -133,45 +183,11 @@ export async function processDocumentLocally(
             } 
           },
           bibliografia: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-          diagramaGanttData: {
-            type: SchemaType.ARRAY,
-            items: {
-              type: SchemaType.OBJECT,
-              properties: {
-                id: { type: SchemaType.STRING },
-                titulo: { type: SchemaType.STRING },
-                actividades: {
-                  type: SchemaType.ARRAY,
-                  items: {
-                    type: SchemaType.OBJECT,
-                    properties: {
-                      id: { type: SchemaType.STRING },
-                      titulo: { type: SchemaType.STRING },
-                      tareas: {
-                        type: SchemaType.ARRAY,
-                        items: {
-                          type: SchemaType.OBJECT,
-                          properties: {
-                            id: { type: SchemaType.STRING },
-                            titulo: { type: SchemaType.STRING },
-                            semanas: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER } },
-                          },
-                          required: ["id", "titulo", "semanas"],
-                        }
-                      }
-                    },
-                    required: ["id", "titulo", "tareas"],
-                  }
-                }
-              },
-              required: ["id", "titulo", "actividades"],
-            }
-          },
+          anexosText: { type: SchemaType.STRING },
         },
         required: [
-          "portada", "introduccion", "capitulo1", "capitulo2", "capitulo3",
-          "capitulo4", "conclusiones", "recomendaciones", "glosario", "bibliografia",
-          "diagramaGanttData"
+          "portada", "actasEvaluacion", "introduccion", "capitulo1", "capitulo2", "capitulo3",
+          "capitulo4", "conclusiones", "recomendaciones", "glosario", "bibliografia", "anexosText"
         ],
       }
     }
@@ -228,14 +244,19 @@ export async function processDocumentLocally(
 
   const prompt = `
     Actúa como un tutor académico experto y redactor de Informes de Práctica Profesional de Alto Nivel.
-    Tu objetivo es redactar, estructurar y corregir informes de pasantías basándote en normativas institucionales.
+    Tu objetivo es redactar un informe EXHAUSTIVO, EXTENSO y con MÁXIMO DETALLE TÉCNICO. 
+    El documento final debe ser comparable a un trabajo especial de grado en profundidad.
 
-    REGLAS DE CONTENIDO:
-    1. INTRODUCCIÓN: Redacción técnica de mín. 300 palabras.
-    2. ENTORNOS: Mejora el texto siguiendo numeración exacta (1.1, 1.2...).
-    3. GLOSARIO: Ordenado alfabéticamente.
-    4. BIBLIOGRAFÍA: Formato APA estricto.
-    5. EVIDENCIAS: Referencia obligatoria a "Anexo X" en la sección 3.2.
+    REGLAS DE EXTENSIÓN Y DETALLE (CRÍTICO):
+    1. VERBOSIDAD: No resumas. Explica cada concepto, proceso y herramienta con total detalle.
+    2. INTRODUCCIÓN: Redacción académica profunda de MÍNIMO 600-1000 palabras.
+    3. CAPÍTULO 1 (LA EMPRESA): Describe la historia, misión, visión y valores de forma enciclopédica y densa.
+    4. CAPÍTULO 2 (EL PROBLEMA): El planteamiento debe ser extenso (mín. 4-6 párrafos antes de las causas/consecuencias).
+    5. CAPÍTULO 3 (LA SOLUCIÓN): Detalla cada paso técnico, diagrama y metodología. Explica la arquitectura y flujos de datos.
+    6. CAPÍTULO 4 (CONOCIMIENTOS): No escatimes en detalles sobre el aprendizaje técnico y profesional logrado.
+    7. GLOSARIO: Definiciones técnicas completas y detalladas.
+    8. BIBLIOGRAFÍA: Formato APA estricto.
+    9. EVIDENCIAS: Referencia obligatoria a "Anexo X" en la sección de actividades.
 
     REQUERIMIENTOS INSTITUCIONALES:
     ${INTERNSHIP_GUIDELINES}

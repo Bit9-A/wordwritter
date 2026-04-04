@@ -239,7 +239,7 @@ function renderInstitutionalHeader(worksheet: ExcelJS.Worksheet, data: any, them
 
   worksheet.mergeCells('A3:Q10');
   const titleBox = worksheet.getCell('A3');
-  titleBox.value = `\n\nPLAN DE TRABAJO DE PASANTÍAS\nPROYECTO: ${(p.titulo || 'TITULO DEL PROYECTO').toUpperCase()}\nPASANTE: ${(p.nombres || '')} ${(p.apellidos || '')}`;
+  titleBox.value = `\n\nPLAN DE TRABAJO DE PASANTÍAS\nPROYECTO: ${(p.tituloProyecto || 'TITULO DEL PROYECTO').toUpperCase()}\nPASANTE: ${(p.nombres || '')} ${(p.apellidos || '')}`;
   titleBox.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
   titleBox.font = { bold: true, size: 12 };
   titleBox.border = getStandardBorder(theme.colors.borderColor);
@@ -251,7 +251,7 @@ function renderModernHeader(worksheet: ExcelJS.Worksheet, data: any, theme: Them
   
   worksheet.mergeCells('A1:K6');
   const titleCell = worksheet.getCell('A1');
-  titleCell.value = `\n  PROJECT SCHEDULE / GANTT CHART\n  Client: ${(p.institucion || 'Corporate Partner')}\n  Project: ${(p.titulo || 'Implementation Plan')}`;
+  titleCell.value = `\n  PROJECT SCHEDULE / GANTT CHART\n  Client: ${(p.institucion || 'Corporate Partner')}\n  Project: ${(p.tituloProyecto || 'Implementation Plan')}`;
   titleCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
   titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFF' } };
   titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: theme.colors.headerBg } };

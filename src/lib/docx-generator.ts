@@ -96,7 +96,7 @@ function heading1(text: string): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_1,
     alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text: text.toUpperCase(), font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
+    children: [new TextRun({ text: (text || '').toUpperCase(), font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
     spacing: { line: LINE_15, before: 0, after: 0 },
   });
 }
@@ -239,7 +239,7 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { line: LINE_15, before: 0, after: 0 },
-            children: [new TextRun({ text: data.portada.tituloProyecto.toUpperCase(), font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
+            children: [new TextRun({ text: (data.portada.tituloProyecto || 'TÍTULO DEL PROYECTO').toUpperCase(), font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
           }),
 
           // Espacio hacia datos del autor
