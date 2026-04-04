@@ -45,7 +45,9 @@ const M_CHAP = {    // Inicio de capítulo/sección: 5 cm superior
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Parsea texto con negritas markdown (**texto**) */
-function parseMarkdownBold(text: string): TextRun[] {
+function parseMarkdownBold(text: string | undefined): TextRun[] {
+  if (!text) return [new TextRun({ text: '', font: FONT, size: FONT_SIZE, color: BLACK })];
+  
   const parts: TextRun[] = [];
   const regex = /\*\*(.*?)\*\*/g;
   let lastIndex = 0;
@@ -67,7 +69,7 @@ function parseMarkdownBold(text: string): TextRun[] {
 }
 
 /** Párrafo de texto normal (justificado, SIN sangría, sin espacio extra) */
-function bodyParagraph(text: string, opts?: { alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] }): Paragraph {
+function bodyParagraph(text: string | undefined, opts?: { alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] }): Paragraph {
   return new Paragraph({
     style: 'BodyText',
     alignment: opts?.alignment ?? AlignmentType.JUSTIFIED,
@@ -102,11 +104,11 @@ function heading1(text: string): Paragraph {
 }
 
 /** Heading 2: Negrilla, alineado izquierda, sin sangría, nivel TOC 2 */
-function heading2(text: string): Paragraph {
+function heading2(text: string | undefined): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
     alignment: AlignmentType.LEFT,
-    children: [new TextRun({ text, font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
+    children: [new TextRun({ text: text || '', font: FONT, size: FONT_SIZE, bold: true, color: BLACK })],
     spacing: { line: LINE_15, before: convertMillimetersToTwip(6), after: 0 },
   });
 }
@@ -131,7 +133,8 @@ function pageFooter(): Footer {
 }
 
 /** Convierte texto con saltos de línea en array de Paragraph */
-function textToParas(text: string): Paragraph[] {
+function textToParas(text: string | undefined): Paragraph[] {
+  if (!text) return [];
   return text
     .split('\n')
     .map(line => line.trim())
@@ -374,7 +377,7 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           ...textToParas(data.capitulo1.objetivosInstitucion.general),
 
           heading2('1.6.2 Objetivos Específicos'),
-          ...data.capitulo1.objetivosInstitucion.especificos.map(obj =>
+          ...(data.capitulo1?.objetivosInstitucion?.especificos || []).map(obj =>
             new Paragraph({
               alignment: AlignmentType.JUSTIFIED,
               spacing: { line: LINE_15, before: 0, after: 0 },
@@ -424,7 +427,7 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
           ...textToParas(data.capitulo2.objetivos.general),
 
           heading2('2.3.2 Objetivos Específicos'),
-          ...data.capitulo2.objetivos.especificos.map(obj =>
+          ...(data.capitulo2?.objetivos?.especificos || []).map(obj =>
             new Paragraph({
               alignment: AlignmentType.JUSTIFIED,
               spacing: { line: LINE_15, before: 0, after: 0 },
@@ -492,7 +495,7 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
         children: [
           heading2('3.2 Descripción de las Actividades por Semana'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(8), after: 0 }, children: [new TextRun('')] }),
-          ...data.capitulo3.descripcionActividadesSemanas.flatMap(a => [
+          ...((data.capitulo3?.descripcionActividadesSemanas) || []).flatMap(a => [
             heading2(a.semana),
             ...textToParas(a.descripcion),
           ]),
@@ -560,7 +563,7 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
         children: [
           heading1('GLOSARIO'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...data.glosario.map(t =>
+          ...(data.glosario || []).map(t =>
             bodyMultiRun([
               new TextRun({ text: `${t.termino}: `, font: FONT, size: FONT_SIZE, bold: true, color: BLACK }),
               new TextRun({ text: t.definicion, font: FONT, size: FONT_SIZE, color: BLACK }),
@@ -577,7 +580,7 @@ export async function generateDocument(data: DocumentData): Promise<Buffer> {
         children: [
           heading1('BIBLIOGRAFÍA'),
           new Paragraph({ spacing: { line: LINE_15, before: convertMillimetersToTwip(12), after: 0 }, children: [new TextRun('')] }),
-          ...data.bibliografia.map(ref =>
+          ...(data.bibliografia || []).map(ref =>
             new Paragraph({
               alignment: AlignmentType.JUSTIFIED,
               spacing: { line: LINE_15, before: 0, after: convertMillimetersToTwip(6) },

@@ -383,27 +383,57 @@ function extractJsonFromText(text: string): string {
  * Intelligent JSON repair for truncated responses (closes open strings and brackets safely).
  */
 function repairTruncatedJson(json: string): string {
-  let repaired = json.trim();
+  let inString = false;
+  let escapeNext = false;
+  const stack: ('{' | '[')[] = [];
   
-  // Contar comillas dobles NO escapadas
-  const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
-  if (quoteCount % 2 !== 0) {
-    repaired += '"'; 
+  // Lexer: recorremos el JSON carácter por carácter para ignorar estructuras dentro de strings
+  for (let i = 0; i < json.length; i++) {
+    const char = json[i];
+    
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    
+    if (!inString) {
+      if (char === '{') stack.push('{');
+      else if (char === '[') stack.push('[');
+      else if (char === '}') stack.pop();
+      else if (char === ']') stack.pop();
+    }
   }
   
-  // Limpiar caracteres finales colgados que impiden cerrar objetos
+  let repaired = json;
+  
+  // 1. Si la cadena de texto quedó a medias, la cerramos
+  if (inString) {
+    repaired += '"';
+  }
+  
+  // 2. Limpiamos caracteres colgantes (comas, dos puntos)
   repaired = repaired.trim();
   if (repaired.endsWith(',')) {
     repaired = repaired.slice(0, -1);
   } else if (repaired.endsWith(':')) {
-    repaired += '""'; // Darle un valor por defecto si cortó justo después del :
+    repaired += 'null'; // Agregamos un valor nulo para que sea un objeto/campo válido
   }
   
-  const openBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
-  const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
-  
-  for (let i = 0; i < openBrackets; i++) repaired += ']';
-  for (let i = 0; i < openBraces; i++) repaired += '}';
+  // 3. Cerramos todas las estructuras apiladas, en estricto orden LIFO
+  while (stack.length > 0) {
+    const bracket = stack.pop();
+    repaired += bracket === '{' ? '}' : ']';
+  }
   
   return repaired;
 }

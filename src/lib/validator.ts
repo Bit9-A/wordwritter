@@ -21,7 +21,7 @@ export function validateDocument(data: DocumentData, options: { skipGantt?: bool
 
   // 2. Validar que el Glosario esté ordenado alfabéticamente
   if (data.glosario && data.glosario.length > 0) {
-    const terms = data.glosario.map(g => g.termino.toLowerCase());
+    const terms = (data.glosario || []).map(g => g.termino.toLowerCase());
     const sortedTerms = [...terms].sort();
     
     // Check if the arrays are equal
