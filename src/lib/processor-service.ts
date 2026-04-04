@@ -224,7 +224,9 @@ export async function processDocumentLocally(
   const currentYear = currentDate.getFullYear();
   const currentDateInfo = `INFORMACIÓN TEMPORAL: El año actual es ${currentYear} y el mes actual es ${currentMonth}. Usa estos valores cada vez que debas colocar fechas actuales para el documento.`;
 
-  async function generateChapterLocally(chap: TargetChapter): Promise<ProcessedDocumentData> {
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+  async function generateChapterLocally(chap: TargetChapter, retries = 2): Promise<ProcessedDocumentData> {
     let targetChapterInstructions = "";
     if (chap !== 'all') {
       const chapterMap: Record<string, string> = {
@@ -281,29 +283,43 @@ export async function processDocumentLocally(
     ---
   `;
 
-    const result = await aiModel.generateContent(prompt);
-    const response = await result.response;
-    const rawText = response.text();
-
     try {
-      const cleanedJson = extractJsonFromText(rawText);
-      return JSON.parse(cleanedJson) as ProcessedDocumentData;
-    } catch (e: any) {
-      console.warn("⚠️ [Auto-Heal] JSON truncado por la IA. Iniciando reparación automática de emergencia...", e.message);
-      
-      try {
-        const repairedJson = repairTruncatedJson(extractJsonFromText(rawText));
-        const finalJson = JSON.parse(repairedJson) as ProcessedDocumentData;
-        console.warn("✅ [Auto-Heal] ¡Reparación de JSON exitosa! Salvando los datos generados.");
-        return finalJson;
-      } catch (repairError) {
-        console.error("Automated JSON repair failed.");
-      }
+      const result = await aiModel.generateContent(prompt);
+      const response = await result.response;
+      const rawText = response.text();
 
-      if (e.message.includes("Unterminated string") || e.message.includes("Unexpected end of JSON input") || rawText.length > 15000) {
-        throw new Error("El documento es demasiado extenso para ser procesado de una vez. Por favor, intenta procesarlo seleccionando un 'Capítulo Específico' en lugar de 'Todo el Documento'.");
+      try {
+        const cleanedJson = extractJsonFromText(rawText);
+        return JSON.parse(cleanedJson) as ProcessedDocumentData;
+      } catch (e: any) {
+        console.warn("⚠️ [Auto-Heal] JSON truncado por la IA. Iniciando reparación automática de emergencia...", e.message);
+        
+        try {
+          const repairedJson = repairTruncatedJson(extractJsonFromText(rawText));
+          const finalJson = JSON.parse(repairedJson) as ProcessedDocumentData;
+          console.warn("✅ [Auto-Heal] ¡Reparación de JSON exitosa! Salvando los datos generados.");
+          return finalJson;
+        } catch (repairError) {
+          console.error("Automated JSON repair failed.");
+        }
+
+        if (e.message.includes("Unterminated string") || e.message.includes("Unexpected end of JSON input") || rawText.length > 15000) {
+          throw new Error("El documento es demasiado extenso para ser procesado de una vez. Por favor, intenta procesarlo seleccionando un 'Capítulo Específico' en lugar de 'Todo el Documento'.");
+        }
+        throw new Error("La respuesta de la IA llegó con problemas de formato JSON. Intenta de nuevo.");
       }
-      throw new Error("La respuesta de la IA llegó con problemas de formato JSON. Intenta de nuevo.");
+    } catch (apiError: any) {
+      if (apiError.message?.includes("503") || apiError.message?.includes("429") || apiError.message?.toLowerCase().includes("overloaded") || apiError.message?.toLowerCase().includes("quota")) {
+        if (retries > 0) {
+          onProgress?.(`Mucha demanda detectada. Reintentando automáticamente en 10s...`);
+          await delay(10000); // 10 segundos antes del reintento de emergencia
+          return await generateChapterLocally(chap, retries - 1);
+        } else {
+          console.warn(`[API] Se agotaron los reintentos para ${chap}. Rellenando con datos vacíos.`);
+          return {} as ProcessedDocumentData;
+        }
+      }
+      throw apiError;
     }
   }
 
@@ -316,7 +332,12 @@ export async function processDocumentLocally(
     // Si es solo "gantt", no hace falta generar todos los de word, ahorramos créditos.
     const partsToProcess = generationMode === 'gantt' ? ['cap3'] as TargetChapter[] : chapters;
 
-    for (const chap of partsToProcess) {
+    for (let i = 0; i < partsToProcess.length; i++) {
+      const chap = partsToProcess[i];
+      if (i > 0) {
+        onProgress?.(`Enfriando API pacíficamente (Evitando sanción por Google)... `);
+        await delay(6000); // 6 segundos naturales entre llamadas masivas
+      }
       onProgress?.(`Generando: ${chap}... (Esto tardará unos segundos)`);
       
       const partialData = await generateChapterLocally(chap);
