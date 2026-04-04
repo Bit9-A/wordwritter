@@ -1,6 +1,6 @@
 'use client';
 
-import { useId } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface AdScriptLoaderProps {
   className?: string;
@@ -9,30 +9,50 @@ interface AdScriptLoaderProps {
 
 /**
  * AdScriptLoader
- * Renders a script element with a loader function that inserts another script 
- * before itself. This is common for ad providers.
+ * Dynamically injects an ad script that uses d.scripts[d.scripts.length - 1] logic.
  */
 export function AdScriptLoader({ className = "", scriptUrl }: AdScriptLoaderProps) {
-  const id = useId();
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Create the script element
+    const script = document.createElement('script');
+    script.async = true;
+    script.referrerPolicy = 'no-referrer-when-downgrade';
+    
+    // Instead of setting src directly, we wrap the loader logic 
+    // to ensure 'l' (the current script) is found correctly.
+    // We append the script element to the DOM, then set its text content.
+    
+    script.textContent = `
+      (function(ehz){
+        var d = document,
+            s = d.createElement('script'),
+            l = d.scripts[d.scripts.length - 1];
+        s.settings = ehz || {};
+        s.src = "${scriptUrl.replace(/"/g, '\\"')}";
+        s.async = true;
+        s.referrerPolicy = 'no-referrer-when-downgrade';
+        l.parentNode.insertBefore(s, l);
+      })({})
+    `;
+
+    containerRef.current.appendChild(script);
+
+    return () => {
+      // Cleanup: remove the scripts if component unmounts
+      // Note: the loader script inserts ANOTHER script (s), 
+      // which we don't have a direct reference to here easily, 
+      // but usually these are meant to stay or be handled by the provider.
+      if (containerRef.current?.contains(script)) {
+        containerRef.current.removeChild(script);
+      }
+    };
+  }, [scriptUrl]);
+
   return (
-    <div id={`ad-container-${id}`} className={`ad-script-container transition-all hover:scale-[1.01] ${className}`}>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            (function(ehz){
-              var d = document,
-                  s = d.createElement('script'),
-                  l = d.scripts[d.scripts.length - 1];
-              s.settings = ehz || {};
-              s.src = "${scriptUrl.replace(/"/g, '\\"')}";
-              s.async = true;
-              s.referrerPolicy = 'no-referrer-when-downgrade';
-              l.parentNode.insertBefore(s, l);
-            })({})
-          `,
-        }}
-      />
-    </div>
+    <div ref={containerRef} className={`ad-script-container flex justify-center items-center min-h-[50px] ${className}`} />
   );
 }
