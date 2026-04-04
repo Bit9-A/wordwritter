@@ -81,7 +81,8 @@ export function useDocumentProcessor(deps: ProcessorDeps) {
         generationMode,
         userPrompt: deps.userPrompt,
         language: deps.lang,
-        targetChapter: deps.targetChapter
+        targetChapter: deps.targetChapter,
+        onProgress: (msg: string) => setResult(msg)
       });
 
       setProcessedData(data);

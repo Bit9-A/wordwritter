@@ -19,9 +19,10 @@ export async function processDocumentLocally(
     userPrompt: string;
     language: string;
     targetChapter: TargetChapter;
+    onProgress?: (msg: string) => void;
   }
 ): Promise<ProcessedDocumentData> {
-  const { apiKey, model, generationMode, userPrompt, language, targetChapter } = config;
+  const { apiKey, model, generationMode, userPrompt, language, targetChapter, onProgress } = config;
 
   // 1. Extract text from Word (mammoth works in browser)
   const arrayBuffer = await file.arrayBuffer();
@@ -33,7 +34,7 @@ export async function processDocumentLocally(
     model,
     generationConfig: {
       responseMimeType: "application/json",
-      maxOutputTokens: 8192,
+      maxOutputTokens: 16384, // Aumentado para soportar documentos largos
       temperature: 0.7,
       responseSchema: {
         type: SchemaType.OBJECT,
@@ -194,8 +195,8 @@ export async function processDocumentLocally(
   });
 
   const languageInstruction = language === 'en'
-    ? `CRITICAL: The entire output MUST be in ENGLISH.`
-    : `CRÍTICO: Todo el resultado DEBE estar en ESPAÑOL.`;
+    ? `CRITICAL: The entire output MUST be in ENGLISH. This includes but is not limited to: Preliminary pages, Introductions, Chapters, Glossary, Bibliography, and the Gantt Chart (Objectives, Activities, Tasks).`
+    : `CRÍTICO: Todo el resultado DEBE estar en ESPAÑOL. Esto incluye pero no se limita a: Páginas preliminares, Introducción, Capítulos, Glosario, Bibliografía y el Diagrama de Gantt (Objetivos, Actividades, Tareas).`;
 
   const userInstructions = userPrompt 
     ? `INSTRUCCIONES ESPECÍFICAS DEL USUARIO (Prioridad Alta): ${userPrompt}`
@@ -205,77 +206,204 @@ export async function processDocumentLocally(
   if (generationMode === 'word') {
     modeInstructions = `ENFOQUE: Solo Informe Word. Ignora la sección de cronograma. Deja diagramaGanttData como un array vacío.`;
   } else if (generationMode === 'gantt') {
-    modeInstructions = `ENFOQUE: Solo Diagrama de Gantt. Prioridad absoluta es la estructura de 3 niveles para el cronograma.`;
+    modeInstructions = `ENFOQUE: Solo Diagrama de Gantt. Aunque debes llenar la estructura del documento, tu prioridad absoluta es extraer y proponer una estructura perfecta de 3 niveles para el cronograma (Objetivo -> Actividad -> Tarea).`;
   } else {
-    modeInstructions = `ENFOQUE: Completo (Word + Gantt).`;
+    modeInstructions = `ENFOQUE: Completo (Word + Gantt). Procesa el informe y genera la estructura de 3 niveles para el cronograma.`;
   }
 
   const ganttInstructions = (generationMode !== 'word')
-    ? `Para la sección de Cronograma:
-       - Estructura en 3 Niveles: Objetivo Específico -> Actividad -> Tarea.
-       - Cada Objetivo Específico = 3 Actividades.
-       - Cada Actividad = 3 Tareas operativas.
-       - Distribuye las tareas en 14 semanas.`
+    ? `Para la sección de Cronograma (Capítulo 3):
+       - DEBES estructurar la respuesta en exactamente 3 Niveles: Objetivo Específico -> Actividad -> Tarea.
+       - Para cada Objetivo Específico encontrado, DEBES proponer exactamente 3 Actividades de alto nivel.
+       - Por cada una de esas Actividades, DEBES proponer exactamente 3 Tareas operativas detalladas.
+       - Distribuye las tareas lógicamente a lo largo de 14 semanas.`
     : "";
-
-  let targetChapterInstructions = "";
-  if (targetChapter !== 'all') {
-    const chapterMap: Record<string, string> = {
-      'preliminares': 'las Páginas Preliminares (Portada, Actas, Dedicatoria, Introducción)',
-      'cap1': 'el Capítulo I (La Empresa)',
-      'cap2': 'el Capítulo II (El Problema)',
-      'cap3': 'el Capítulo III (La Solución / Cronograma)',
-      'cap4': 'el Capítulo IV (Conocimientos Adquiridos)',
-      'conclusiones': 'las Conclusiones, Recomendaciones, Glosario y Bibliografía',
-    };
-    const chapterName = chapterMap[targetChapter] || targetChapter;
-    targetChapterInstructions = `
-      INSTRUCCIÓN CRÍTICA DE AISLAMIENTO:
-      El usuario solicita ENFOCARSE EXCLUSIVAMENTE en **${chapterName}**.
-      - SOLO modifica/mejora el contenido de **${chapterName}**.
-      - Para el resto de capítulos, COPIA FIELMENTE el texto del borrador sin alterar absolutamente nada.
-    `;
-  }
 
   const currentDate = new Date();
   const currentMonth = currentDate.toLocaleString(language === 'en' ? 'en-US' : 'es-ES', { month: 'long' });
   const currentYear = currentDate.getFullYear();
-  const currentDateInfo = `INFORMACIÓN TEMPORAL: Año ${currentYear}, Mes ${currentMonth}.`;
+  const currentDateInfo = `INFORMACIÓN TEMPORAL: El año actual es ${currentYear} y el mes actual es ${currentMonth}. Usa estos valores cada vez que debas colocar fechas actuales para el documento.`;
 
-  const prompt = `
-    Actúa como un tutor académico experto y redactor de Informes de Práctica Profesional de Alto Nivel.
-    Tu objetivo es redactar un informe EXHAUSTIVO, EXTENSO y con MÁXIMO DETALLE TÉCNICO. 
-    El documento final debe ser comparable a un trabajo especial de grado en profundidad.
+  async function generateChapterLocally(chap: TargetChapter): Promise<ProcessedDocumentData> {
+    let targetChapterInstructions = "";
+    if (chap !== 'all') {
+      const chapterMap: Record<string, string> = {
+        'preliminares': 'las Páginas Preliminares (Portada, Actas, Dedicatoria, Introducción)',
+        'cap1': 'el Capítulo I (La Empresa)',
+        'cap2': 'el Capítulo II (El Problema)',
+        'cap3': 'el Capítulo III (La Solución / Cronograma)',
+        'cap4': 'el Capítulo IV (Conocimientos Adquiridos)',
+        'conclusiones': 'las Conclusiones, Recomendaciones, Glosario y Bibliografía',
+      };
+      
+      const chapterName = chapterMap[chap] || chap;
+      targetChapterInstructions = `
+      INSTRUCCIÓN CRÍTICA DE AISLAMIENTO:
+      El usuario ha solicitado ENFOCARSE EXCLUSIVAMENTE en **${chapterName}**.
+      - SOLO puedes modificar, mejorar, generar o alterar el texto correspondiente a **${chapterName}**.
+      - Para TODAS LAS DEMÁS SECCIONES y capítulos, debes copiar fielmente el texto proveído por el usuario como SOLO LECTURA sin alterar absolutamente nada, excepto si necesitas llenar una estructura obligatoria vacía (en cuyo caso pon "No provisto").
+      `;
+    }
 
-    REGLAS DE EXTENSIÓN Y DETALLE (CRÍTICO):
-    1. VERBOSIDAD: No resumas. Explica cada concepto, proceso y herramienta con total detalle.
-    2. INTRODUCCIÓN: Redacción académica profunda de MÍNIMO 600-1000 palabras.
-    3. CAPÍTULO 1 (LA EMPRESA): Describe la historia, misión, visión y valores de forma enciclopédica y densa.
-    4. CAPÍTULO 2 (EL PROBLEMA): El planteamiento debe ser extenso (mín. 4-6 párrafos antes de las causas/consecuencias).
-    5. CAPÍTULO 3 (LA SOLUCIÓN): Detalla cada paso técnico, diagrama y metodología. Explica la arquitectura y flujos de datos.
-    6. CAPÍTULO 4 (CONOCIMIENTOS): No escatimes en detalles sobre el aprendizaje técnico y profesional logrado.
-    7. GLOSARIO: Definiciones técnicas completas y detalladas.
-    8. BIBLIOGRAFÍA: Formato APA estricto.
-    9. EVIDENCIAS: Referencia obligatoria a "Anexo X" en la sección de actividades.
+    const prompt = `
+    Actúa como un tutor académico experto y redactor de Informes de Práctica Profesional. Tu único objetivo es redactar, estructurar y corregir informes de pasantías basándote estrictamente en las normativas proporcionadas.
+    Adaptarás el contenido a cualquier carrera y tema, manteniendo un tono formal, técnico y en tercera persona.
 
-    REQUERIMIENTOS INSTITUCIONALES:
+    REGLAS DE CONTENIDO Y ESTRUCTURA:
+    1. PÁGINAS PRELIMINARES: Genera contenido para Portada, Actas de Evaluación (Institucional, Académico, Evaluador), Dedicatoria e Introducción.
+    2. INTRODUCCIÓN: Debe ser una redacción técnica y fluida que presente el proyecto (mínimo 300 palabras).
+    3. CAPÍTULO I a IV: Procesa y mejora el texto del estudiante siguiendo la numeración exacta (1.1, 1.2... 2.1... 3.1... 4.1).
+    4. GLOSARIO: Ordenado ALFABÉTICAMENTE de forma obligatoria.
+    5. BIBLIOGRAFÍA: Formato APA, con sangría francesa (simulada en el texto) y espacio de 1.5cm entre citas.
+    6. EVIDENCIAS: En la sección 3.2, es obligatorio referenciar "Anexo 1", "Anexo 2", etc.
+
+    ORIENTACIÓN DE ESTILO:
+    - Tono formal y técnico.
+    - Evita repeticiones.
+    - Si falta información (como misión, visión o coordenadas), GENERA información coherente con el tipo de empresa mencionado.
+    
     ${INTERNSHIP_GUIDELINES}
 
     ${currentDateInfo}
+
     ${languageInstruction}
     ${userInstructions}
     ${modeInstructions}
     ${ganttInstructions}
     ${targetChapterInstructions}
+
+    Instrucciones adicionales de estilo:
     ${rule.prompt}
 
-    A continuación el contenido del documento borrador del estudiante:
+    A continuación se presenta el contenido del documento borrador del estudiante:
     ---
     ${text}
     ---
   `;
 
-  const result = await aiModel.generateContent(prompt);
-  const response = await result.response;
-  return JSON.parse(response.text()) as ProcessedDocumentData;
+    const result = await aiModel.generateContent(prompt);
+    const response = await result.response;
+    const rawText = response.text();
+
+    try {
+      const cleanedJson = extractJsonFromText(rawText);
+      return JSON.parse(cleanedJson) as ProcessedDocumentData;
+    } catch (e: any) {
+      console.warn("⚠️ [Auto-Heal] JSON truncado por la IA. Iniciando reparación automática de emergencia...", e.message);
+      
+      try {
+        const repairedJson = repairTruncatedJson(extractJsonFromText(rawText));
+        const finalJson = JSON.parse(repairedJson) as ProcessedDocumentData;
+        console.warn("✅ [Auto-Heal] ¡Reparación de JSON exitosa! Salvando los datos generados.");
+        return finalJson;
+      } catch (repairError) {
+        console.error("Automated JSON repair failed.");
+      }
+
+      if (e.message.includes("Unterminated string") || e.message.includes("Unexpected end of JSON input") || rawText.length > 15000) {
+        throw new Error("El documento es demasiado extenso para ser procesado de una vez. Por favor, intenta procesarlo seleccionando un 'Capítulo Específico' en lugar de 'Todo el Documento'.");
+      }
+      throw new Error("La respuesta de la IA llegó con problemas de formato JSON. Intenta de nuevo.");
+    }
+  }
+
+  if (targetChapter === 'all') {
+    onProgress?.("Iniciando procesamiento fase por fase...");
+    // Sequential generation
+    const chapters: TargetChapter[] = ['preliminares', 'cap1', 'cap2', 'cap3', 'cap4', 'conclusiones'];
+    const mergedData: Partial<ProcessedDocumentData> = {};
+
+    // Si es solo "gantt", no hace falta generar todos los de word, ahorramos créditos.
+    const partsToProcess = generationMode === 'gantt' ? ['cap3'] as TargetChapter[] : chapters;
+
+    for (const chap of partsToProcess) {
+      onProgress?.(`Generando: ${chap}... (Esto tardará unos segundos)`);
+      
+      const partialData = await generateChapterLocally(chap);
+      
+      if (chap === 'preliminares') {
+        mergedData.portada = partialData.portada;
+        mergedData.actasEvaluacion = partialData.actasEvaluacion;
+        mergedData.introduccion = partialData.introduccion;
+      } else if (chap === 'cap1') {
+        mergedData.capitulo1 = partialData.capitulo1;
+      } else if (chap === 'cap2') {
+        mergedData.capitulo2 = partialData.capitulo2;
+      } else if (chap === 'cap3') {
+        mergedData.capitulo3 = partialData.capitulo3;
+      } else if (chap === 'cap4') {
+        mergedData.capitulo4 = partialData.capitulo4;
+      } else if (chap === 'conclusiones') {
+        mergedData.conclusiones = partialData.conclusiones;
+        mergedData.recomendaciones = partialData.recomendaciones;
+        mergedData.glosario = partialData.glosario;
+        mergedData.bibliografia = partialData.bibliografia;
+        mergedData.anexosText = partialData.anexosText;
+      }
+    }
+    
+    // Si algo faltó llenar en gantt mode (portada, etc), lo agregamos dummy
+    if (generationMode === 'gantt' && !mergedData.portada) {
+      const dummy = await generateChapterLocally('preliminares'); // Solo para satisfacer TS/Schema superficialmente
+      mergedData.portada = dummy.portada;
+      mergedData.actasEvaluacion = dummy.actasEvaluacion;
+      mergedData.introduccion = dummy.introduccion;
+      //... otras propiedades dummy no críticas
+    }
+
+    onProgress?.("¡Ensamblaje del documento masivo completado!");
+    return mergedData as ProcessedDocumentData;
+  } else {
+    onProgress?.(`Procesando capítulo específico: ${targetChapter}...`);
+    return await generateChapterLocally(targetChapter);
+  }
+}
+
+/**
+ * Robustly extracts JSON from a string without cutting off truncated code.
+ */
+function extractJsonFromText(text: string): string {
+  let candidate = text.trim();
+  
+  // Eliminar bloques markdown si existen
+  const jsonMatch = candidate.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (jsonMatch) {
+    candidate = jsonMatch[1].trim();
+  } else if (candidate.startsWith("```")) {
+    // Puede que tenga el bloque abierto y se truncó antes de cerrarlo
+    candidate = candidate.replace(/^```(?:json)?\s*/, '').trim();
+  }
+  
+  // NO usamos lastIndexOf('}') porque si el string está truncado, 
+  // destruiremos toda la información valiosa generada hasta ese punto.
+  return candidate;
+}
+
+/**
+ * Intelligent JSON repair for truncated responses (closes open strings and brackets safely).
+ */
+function repairTruncatedJson(json: string): string {
+  let repaired = json.trim();
+  
+  // Contar comillas dobles NO escapadas
+  const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
+  if (quoteCount % 2 !== 0) {
+    repaired += '"'; 
+  }
+  
+  // Limpiar caracteres finales colgados que impiden cerrar objetos
+  repaired = repaired.trim();
+  if (repaired.endsWith(',')) {
+    repaired = repaired.slice(0, -1);
+  } else if (repaired.endsWith(':')) {
+    repaired += '""'; // Darle un valor por defecto si cortó justo después del :
+  }
+  
+  const openBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+  const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+  
+  for (let i = 0; i < openBrackets; i++) repaired += ']';
+  for (let i = 0; i < openBraces; i++) repaired += '}';
+  
+  return repaired;
 }
