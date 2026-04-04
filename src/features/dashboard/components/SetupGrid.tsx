@@ -286,7 +286,7 @@ export function SetupGrid({
         whileHover={{ y: -2 }}
         className="lg:col-span-12 glass rounded-2xl p-4 border-zinc-800 flex flex-col items-center justify-center min-h-[100px]"
       >
-        <AdScriptLoader scriptUrl="//selfassured-celebration.com/bSX/VVsAd.G/l/0mYoWZcg/geMm/9Fu/ZtUpldknPzTnY_5pMNjOYo4WOJDvE-tsN/jvknyzNTjAgP4zNtQq" />
+        <AdScriptLoader scriptUrl="//selfassured-celebration.com/bxX/VZs.djGSlM0JYuWDcd/he/mD9mu/ZZUPl_kyPZTpYb5TMwjAY/5bMEzHcBt/NkjxkVyzNhjmkt0CM/QT" />
       </motion.div>
     </motion.div>
   );
