@@ -9,6 +9,7 @@ import {
   Lightning, Palette, Briefcase,
 } from '@phosphor-icons/react';
 import { AdBanner } from './AdBanner';
+import { AdScriptLoader } from './AdScriptLoader';
 import type { RevisionRule } from '@/lib/rules';
 import type { TranslationDict } from '@/lib/i18n';
 import type { GenerationMode, GanttTheme, TargetChapter } from '@/types/dashboard';
@@ -284,9 +285,10 @@ export function SetupGrid({
       {/* AdSense Unit */}
       <motion.div
         whileHover={{ y: -2 }}
-        className="lg:col-span-12 glass rounded-2xl p-4 border-zinc-800 flex items-center justify-center min-h-[100px]"
+        className="lg:col-span-12 glass rounded-2xl p-4 border-zinc-800 flex flex-col items-center justify-center min-h-[100px] gap-4"
       >
         <AdBanner />
+        <AdScriptLoader scriptUrl="//selfassured-celebration.com/bSX/VVsAd.G/l/0mYoWZcg/geMm/9Fu/ZtUpldknPzTnY_5pMNjOYo4WOJDvE-tsN/jvknyzNTjAgP4zNtQq" />
       </motion.div>
     </motion.div>
   );
